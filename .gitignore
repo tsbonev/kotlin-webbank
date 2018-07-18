@@ -1,7 +1,7 @@
 out/
-target/
-.gradle
-.idea
+build/
+gradle/
+.idea/
+.gradle/
 *.iml
 *.ipr
-web/WEB-INF

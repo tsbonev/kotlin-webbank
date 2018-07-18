@@ -1,5 +1,25 @@
-plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.2.51'
+buildscript {
+    ext.gae_version = '1.9.59'
+    ext.kotlin_version = '1.2.51'
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "com.google.appengine:gradle-appengine-plugin:$gae_version"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'appengine'
+apply plugin: "kotlin"
+
+allprojects {
+    apply plugin: 'java'
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
 }
 
 group 'com.clouway'
@@ -7,23 +27,38 @@ version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
+    appengineSdk "com.google.appengine:appengine-java-sdk:$gae_version"
+
+    compile 'javax.servlet:javax.servlet-api:3.1.0'
+
+    compile "com.google.appengine:appengine-api-1.0-sdk:$gae_version"
+    compile "com.google.appengine:appengine-tools-sdk:$gae_version"
+
+    compile 'com.google.guava:guava:19.0'
+
     compile 'com.sparkjava:spark-core:2.5.4'
     compile 'org.slf4j:slf4j-simple:1.7.25'
     compile 'com.sparkjava:spark-template-thymeleaf:2.3'
     compile 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    compile 'org.jetbrains.kotlin:kotlin-reflect:1.2.51'
     compile 'mysql:mysql-connector-java:8.0.11'
     compile 'org.apache.commons:commons-lang3:3.7'
-    compile 'com.google.guava:guava:19.0'
-    testCompile 'junit:junit:4.12'
-    testCompile 'org.jmock:jmock-junit4:2.8.4'
-}
 
-compileKotlin {
-    kotlinOptions.jvmTarget = '1.8'
-}
-compileTestKotlin {
-    kotlinOptions.jvmTarget = '1.8'
+    compileKotlin {
+        kotlinOptions.jvmTarget = '1.8'
+    }
+    compileTestKotlin {
+        kotlinOptions.jvmTarget = '1.8'
+    }
+
+    appengine {
+        downloadSdk = true
+        appcfg {
+            oauth2 = true
+        }
+    }
 }
