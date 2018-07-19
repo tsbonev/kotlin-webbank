@@ -34,6 +34,7 @@ dependencies {
     appengineSdk "com.google.appengine:appengine-java-sdk:$gae_version"
 
     compile 'javax.servlet:javax.servlet-api:3.1.0'
+    compile group: 'javax.jdo', name: 'jdo2-api', version: '2.3-20090302111651'
 
     compile "com.google.appengine:appengine-api-1.0-sdk:$gae_version"
     compile "com.google.appengine:appengine-tools-sdk:$gae_version"
