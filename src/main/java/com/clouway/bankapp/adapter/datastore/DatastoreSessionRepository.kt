@@ -105,7 +105,7 @@ class DatastoreSessionRepository(private val provider: ServiceProvider,
     override fun getActiveSessionsCount(): Int {
 
         return provider.get()
-                .prepare(Query("Session")
+                .prepare(Query("Session").setKeysOnly()
                         .setFilter(greaterThanFilter("expiresOn", Date.from(Instant.now()))))
                 .asList(withLimit(limit)).size
 

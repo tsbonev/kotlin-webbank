@@ -1,7 +1,7 @@
 package com.clouway.bankapp.adapter.datastore
 
-import com.clouway.bankapp.core.Operation
-import com.clouway.bankapp.core.Transaction
+import com.clouway.bankapp.core.*
+import com.google.appengine.api.datastore.Entity
 import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper
 import org.junit.After
@@ -21,18 +21,15 @@ class TransactionRepositoryTest {
 
     private val provider = DatastoreServiceProvider()
     private val transactionRepo = DatastoreTransactionRepository(provider)
-
-    private val transaction = Transaction(1,
-            Operation.DEPOSIT,
-            1,
-            Date.from(Instant.now()),
-            200.0,
-            "John"
-            )
+    private val transaction = TransactionRequest(1, Operation.DEPOSIT, 200.0)
 
     @Before
     fun setUp() {
         helper.setUp()
+        val userEntity = Entity("User", 1)
+        userEntity.setProperty("username", "John")
+        userEntity.setProperty("password", "password")
+        provider.get().put(userEntity)
     }
 
     @After
@@ -59,12 +56,10 @@ class TransactionRepositoryTest {
 
         for(x in 1..10)
             transactionRepo.save(
-                    Transaction(x.toLong(),
-                            Operation.DEPOSIT,
+                    TransactionRequest(
                             1,
-                            Date.from(Instant.now()),
-                            200.0,
-                            "John"
+                            Operation.DEPOSIT,
+                            200.0
                     )
             )
 
