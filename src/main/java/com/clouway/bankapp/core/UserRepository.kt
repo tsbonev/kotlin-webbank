@@ -2,6 +2,9 @@ package com.clouway.bankapp.core
 
 import java.util.*
 
+/**
+ * @author Tsvetozar Bonev (tsbonev@gmail.com)
+ */
 interface UserRepository {
 
     fun getById(id: Long): Optional<User>

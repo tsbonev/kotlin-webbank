@@ -1,8 +1,11 @@
 package com.clouway.bankapp.core
 
-import java.sql.Timestamp
+import java.util.*
 
-data class Session(val userId: Int,
+/**
+ * @author Tsvetozar Bonev (tsbonev@gmail.com)
+ */
+data class Session(val userId: Long,
                    val sessionId: String,
-                   val expiresOn: Timestamp? = null,
+                   val expiresOn: Date,
                    val isAuthenticated: Boolean = false)

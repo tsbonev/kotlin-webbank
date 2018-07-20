@@ -8,36 +8,11 @@ import com.google.appengine.api.datastore.*
 import com.google.appengine.api.datastore.FetchOptions.Builder.withLimit
 import java.util.*
 
+/**
+ * @author Tsvetozar Bonev (tsbonev@gmail.com)
+ */
 class DatastoreUserRepository(private val provider: ServiceProvider,
                               private val limit: Int = 100) : UserRepository {
-
-
-    private fun checkIfUserExists(username: String, password: String): Boolean{
-
-        val composite = Query.CompositeFilterOperator
-                .and(andFilter("username", username),
-                        andFilter("password", password)
-                )
-
-        if(provider.get()
-                        .prepare(Query("User")
-                                .setFilter(composite))
-                        .asList(FetchOptions.Builder.withLimit(1))
-                        .size != 0){
-            return true
-        }
-
-        return false
-    }
-
-    override fun checkPassword(user: User): Boolean {
-
-        if(checkIfUserExists(user.username, user.password))
-            return true
-        return false
-
-    }
-
 
     private val registrationEntityMapper = object: EntityMapper<UserRegistrationRequest>{
         override fun map(obj: UserRegistrationRequest): Entity {
@@ -70,6 +45,33 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
     private fun andFilter(param: String, value: String): Query.Filter{
         return Query.FilterPredicate(param,
                 Query.FilterOperator.EQUAL, value)
+    }
+
+
+    private fun checkIfUserExists(username: String, password: String): Boolean{
+
+        val composite = Query.CompositeFilterOperator
+                .and(andFilter("username", username),
+                        andFilter("password", password)
+                )
+
+        if(provider.get()
+                        .prepare(Query("User")
+                                .setFilter(composite))
+                        .asList(FetchOptions.Builder.withLimit(1))
+                        .size != 0){
+            return true
+        }
+
+        return false
+    }
+
+    override fun checkPassword(user: User): Boolean {
+
+        if(checkIfUserExists(user.username, user.password))
+            return true
+        return false
+
     }
 
     override fun getById(id: Long): Optional<User> {

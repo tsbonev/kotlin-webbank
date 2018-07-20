@@ -1,8 +1,11 @@
 package com.clouway.bankapp.core
 
-import java.sql.Date
+import java.util.Date
 
-data class Transaction (val id: Int = -1,
+/**
+ * @author Tsvetozar Bonev (tsbonev@gmail.com)
+ */
+data class Transaction (val id: Long = -1,
                         val operation: Operation,
                         val userId: Int,
                         val date: Date,

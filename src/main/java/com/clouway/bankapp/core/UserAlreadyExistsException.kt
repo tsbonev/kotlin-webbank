@@ -1,4 +1,6 @@
 package com.clouway.bankapp.core
 
-class UserAlreadyExistsException : Exception() {
-}
+/**
+ * @author Tsvetozar Bonev (tsbonev@gmail.com)
+ */
+class UserAlreadyExistsException : Exception()

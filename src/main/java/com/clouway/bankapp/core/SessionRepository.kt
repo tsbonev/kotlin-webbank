@@ -1,15 +1,17 @@
 package com.clouway.bankapp.core
 
-import java.sql.Timestamp
 import java.util.*
 
+/**
+ * @author Tsvetozar Bonev (tsbonev@gmail.com)
+ */
 interface SessionRepository {
 
     fun registerSession(session: Session)
     fun refreshSession(session: Session)
     fun terminateSession(sessionId: String)
-    fun deleteSessionsExpiringAfter(timestamp: Timestamp)
-    fun getSessionAvailableAt(sessionId: String, timestamp: Timestamp): Optional<Session>
+    fun deleteSessionsExpiringBefore(date: Date)
+    fun getSessionAvailableAt(sessionId: String, date: Date): Optional<Session>
     fun getActiveSessionsCount(): Int
 
 }
