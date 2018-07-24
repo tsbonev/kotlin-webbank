@@ -10,9 +10,13 @@ import com.clouway.bankapp.adapter.web.LoginController
 import com.clouway.bankapp.adapter.web.RegisterController
 import com.clouway.bankapp.adapter.web.TransactionController
 import com.clouway.bankapp.adapter.web.filter.SessionFilter
+import com.clouway.bankapp.core.SessionNotFoundException
 import spark.Filter
+import spark.Route
 import spark.Spark.*
 import spark.kotlin.before
+import spark.kotlin.get
+import spark.kotlin.post
 import spark.servlet.SparkApplication
 
 class AppBootstrap : SparkApplication{
@@ -36,77 +40,35 @@ class AppBootstrap : SparkApplication{
         val transactionController = TransactionController(transactionRepo, transformer, sessionFilter)
         val loginController = LoginController(userRepo, sessionRepo, transformer)
 
-        options("/*"
-        ) { request, response ->
-
-            val accessControlRequestHeaders = request
-                    .headers("Access-Control-Request-Headers")
-            if (accessControlRequestHeaders != null) {
-                response.header("Access-Control-Allow-Headers",
-                        accessControlRequestHeaders)
-            }
-
-            val accessControlRequestMethod = request
-                    .headers("Access-Control-Request-Method")
-            if (accessControlRequestMethod != null) {
-                response.header("Access-Control-Allow-Methods",
-                        accessControlRequestMethod)
-            }
-
-            "OK"
-        }
-
-        before(sessionFilter)
-
-        before(Filter { req, res -> res.header("Access-Control-Allow-Origin", "*") })
-
         before(Filter { req, res ->
             res.raw().characterEncoding = "UTF-8"
         })
 
+        before(sessionFilter)
 
-        get("/users"){
+        get("/user", Route{
             req, res ->
-            val userList = userRepo.getAll()
-            transformer.render(userList)
-        }
+            try{
+                return@Route sessionFilter.getUserContext(req.cookie("SID"))
+            }catch (e: SessionNotFoundException){
+                return@Route "Not logged in"
+            }
+        }, transformer)
 
-        get("/islogged"){
+        get("/transactions", Route { req, res ->
+            return@Route transactionController.doGet(req, res)
+        }, transformer)
+
+        get("/active", Route{
             req, res ->
-            val isLogged = sessionFilter.isLoggedIn(req.cookie("SID").toString())
-            transformer.render(isLogged)
-        }
+            return@Route sessionRepo.getActiveSessionsCount()
+        }, transformer)
 
-        post("/logout"){
+        get("/sessions", Route{
             req, res ->
-            sessionFilter.logOut(req.cookie("SID").toString())
-            transformer.render(res.status())
-        }
-
-        get("/transactions"){
-                req, res ->
-                val transactionList = transactionController.doGet(req, res)
-                transformer.render(transactionList)
-        }
-
-        get("/sessions"){
-            req, res ->
-            val sessionList = listOf(sessionRepo.getActiveSessionsCount(),
+            return@Route listOf(sessionRepo.getActiveSessionsCount(),
                     sessionFilter.isLoggedIn(req.cookie("SID").toString()))
-            transformer.render(sessionList)
-        }
-
-        get("/addToMemcache"){
-            req, res ->
-            memcacheProvider.service.put("test1", "test2")
-            transformer.render(memcacheProvider.service.get("test1"))
-        }
-
-        get("/viewMemcache"){
-            req, res ->
-            val memcached = memcacheProvider.service.get("test1")
-            transformer.render(memcached)
-        }
+        }, transformer)
 
         get("/statistics"){
             req, res ->
@@ -114,23 +76,26 @@ class AppBootstrap : SparkApplication{
             transformer.render(stats)
         }
 
-        post("/transactions/save", "application/json"){
+        post("/logout", Route{
+            req, res ->
+            sessionFilter.logOut(req.cookie("SID").toString())
+        }, transformer)
+
+
+        post("/transactions/save", "application/json", Route{
             req, res ->
             transactionController.doPost(req, res)
-            transformer.render(res.status())
-        }
+        }, transformer)
 
-        post("/register", "application/json"){
+        post("/register", "application/json", Route{
             req, res ->
             registerController.doPost(req, res)
-            transformer.render(res.status())
-        }
+        }, transformer)
 
-        post("/login", "application/json"){
+        post("/login", "application/json", Route{
             req, res ->
             loginController.doPost(req, res)
-            transformer.render(res.status())
-        }
+        }, transformer)
 
     }
 }

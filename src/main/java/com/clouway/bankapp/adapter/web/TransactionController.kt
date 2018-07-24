@@ -21,7 +21,14 @@ class TransactionController(private val transactionRepo: TransactionRepository,
 
     fun doPost(req: Request, res: Response){
         res.type("application/json")
-        transactionRepo.save(transformer.from(req.body(), TransactionRequest::class.java))
+
+        val transactionRequestFromJson = transformer.from(req.body(), TransactionRequest::class.java)
+        val completeTransactionRequest = TransactionRequest(
+                sessionFilter.getUserContext(req.cookie("SID")).id,
+                transactionRequestFromJson.operation,
+                transactionRequestFromJson.amount)
+
+        transactionRepo.save(completeTransactionRequest)
         res.status(HttpStatus.CREATED_201)
     }
 

@@ -56,8 +56,7 @@ class TransactionRepositoryTest {
 
         for(x in 1..10)
             transactionRepo.save(
-                    TransactionRequest(
-                            1,
+                    TransactionRequest(1,
                             Operation.DEPOSIT,
                             200.0
                     )

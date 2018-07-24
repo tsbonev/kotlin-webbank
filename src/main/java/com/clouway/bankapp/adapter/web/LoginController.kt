@@ -35,7 +35,7 @@ class LoginController(private val userRepo: UserRepository,
 
             sessionRepo.registerSession(Session(
                     user.id,
-                    req.cookie("SID"),
+                    req.cookie("SID").toString(),
                     getExpirationDate(),
                     true
             ))

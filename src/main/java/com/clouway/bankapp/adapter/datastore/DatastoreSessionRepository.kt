@@ -3,6 +3,7 @@ package com.clouway.bankapp.adapter.datastore
 import com.clouway.bankapp.core.Session
 import com.clouway.bankapp.core.SessionRepository
 import com.google.appengine.api.datastore.Entity
+import com.google.appengine.api.datastore.EntityNotFoundException
 import com.google.appengine.api.datastore.FetchOptions.Builder.withLimit
 import com.google.appengine.api.datastore.KeyFactory
 import com.google.appengine.api.datastore.Query
@@ -83,14 +84,22 @@ class DatastoreSessionRepository(private val provider: StoreServiceProvider,
 
     override fun getSessionAvailableAt(sessionId: String, date: Date): Optional<Session> {
 
-        val sessionEntity = getSessionEntityList(date)
+        val sessionKey = KeyFactory.createKey("Session", sessionId)
 
-        return if(sessionEntity.isEmpty()){
+        return try{
+            val sessionEntity = provider.service.get(sessionKey)
+            val sessionExpirationDate = sessionEntity.properties["expiresOn"] as Date
+
+            if(sessionExpirationDate.before(date)){
+                Optional.empty()
+            }
+            else{
+                Optional.of(sessionRowMapper.map(sessionEntity))
+            }
+        }catch (e: EntityNotFoundException){
             Optional.empty()
         }
-        else{
-            Optional.of(sessionRowMapper.map(sessionEntity.first()))
-        }
+
 
     }
 

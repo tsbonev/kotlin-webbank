@@ -19,7 +19,7 @@ class SessionFilter(private val sessionHandler: SessionHandler,
                     private val getCurrentTime: () -> Date = {
                         Date.from(Instant.now())
                     } ) : Filter {
-    
+
     fun getUserContext(sessionId: String): User{
         val sessionContext = sessionHandler.getSessionById(sessionId)
 
@@ -82,8 +82,11 @@ class SessionFilter(private val sessionHandler: SessionHandler,
 
     override fun handle(req: Request, res: Response) {
 
-        if(req.cookie("SID") == null) addCookie(res)
+        if(req.cookie("SID") == null) {
+            addCookie(res)
+        }
 
+        println("---SessionFilter--${req.cookie("SID")}")
         val sessionId = req.cookie("SID").toString()
 
         if(isLoggedIn(sessionId)) res.status(HttpStatus.FOUND_302)

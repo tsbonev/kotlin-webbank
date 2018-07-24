@@ -45,21 +45,13 @@ class DatastoreTransactionRepository(private val provider: StoreServiceProvider,
         override fun map(entity: Entity): Transaction{
             return Transaction(
                 entity.key.id,
-                    Operation.valueOf(entity.properties["operation"].toString()),
-                    entity.properties["userId"].toString().toLong(),
-                    convertToDate(entity.properties["date"]),
-                    entity.properties["amount"].toString().toDouble(),
-                    entity.properties["username"].toString()
+                    Operation.valueOf(entity.properties["operation"] as String),
+                    entity.properties["userId"] as Long,
+                    entity.properties["date"] as Date,
+                    entity.properties["amount"] as Double,
+                    entity.properties["username"] as String
             )
         }
-    }
-
-    private fun convertToDate(obj: Any?): Date {
-
-        if(obj is Date){
-            return obj
-        }
-        return Date.from(Instant.now())
     }
 
     private fun getTransactionEntityList(id: Long, pageSize: Int = limit, offset: Int = 0): List<Entity>{
