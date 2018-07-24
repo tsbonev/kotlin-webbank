@@ -33,7 +33,7 @@ class DatastoreTransactionRepository(private val provider: ServiceProvider,
 
     private fun retrieveUsername(userId: Long): String{
         val userKey = KeyFactory.createKey("User", userId)
-        return provider.get().get(userKey).properties["username"].toString()
+        return provider.service.get(userKey).properties["username"].toString()
     }
 
     private fun andFilter(param: String, value: Long): Query.Filter{
@@ -64,7 +64,7 @@ class DatastoreTransactionRepository(private val provider: ServiceProvider,
 
     private fun getTransactionEntityList(id: Long, pageSize: Int = limit, offset: Int = 0): List<Entity>{
 
-        return provider.get()
+        return provider.service
                 .prepare(Query("Transaction").setFilter(andFilter("userId", id)))
                 .asList(withLimit(pageSize)
                         .offset(offset))
@@ -72,7 +72,7 @@ class DatastoreTransactionRepository(private val provider: ServiceProvider,
     }
 
     override fun save(transaction: TransactionRequest) {
-        provider.get().put(transactionRequestEntityMapper.map(transaction))
+        provider.service.put(transactionRequestEntityMapper.map(transaction))
     }
 
     override fun getUserTransactions(id: Long, page: Int, pageSize: Int): List<Transaction> {

@@ -7,8 +7,8 @@ import com.google.appengine.api.datastore.DatastoreServiceFactory
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
 class DatastoreServiceProvider : ServiceProvider {
-    
-    override fun get(): DatastoreService {
-        return DatastoreServiceFactory.getDatastoreService()
-    }
+
+    override val service: DatastoreService
+        get() = DatastoreServiceFactory.getDatastoreService()
+
 }

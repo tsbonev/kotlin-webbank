@@ -7,6 +7,6 @@ import com.google.appengine.api.datastore.DatastoreService
  */
 interface ServiceProvider {
 
-    fun get(): DatastoreService
+    val service: DatastoreService
 
 }

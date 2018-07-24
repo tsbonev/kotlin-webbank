@@ -3,6 +3,7 @@ package com.clouway.bankapp.adapter.web
 import com.clouway.bankapp.core.Transaction
 import com.clouway.bankapp.core.TransactionRepository
 import com.clouway.bankapp.core.TransactionRequest
+import org.eclipse.jetty.http.HttpStatus
 import spark.Request
 import spark.Response
 
@@ -19,7 +20,7 @@ class TransactionController(private val transactionRepo: TransactionRepository,
     fun doPost(req: Request, res: Response){
         res.type("application/json")
         transactionRepo.save(transformer.from(req.body(), TransactionRequest::class.java))
-        res.status(201)
+        res.status(HttpStatus.CREATED_201)
     }
 
 }

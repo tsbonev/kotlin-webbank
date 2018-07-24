@@ -1,11 +1,15 @@
 package server
 import com.clouway.bankapp.adapter.datastore.DatastoreServiceProvider
+import com.clouway.bankapp.adapter.datastore.DatastoreSessionRepository
 import com.clouway.bankapp.adapter.datastore.DatastoreTransactionRepository
 import com.clouway.bankapp.adapter.datastore.DatastoreUserRepository
+import com.clouway.bankapp.adapter.memcache.MemcacheServiceProvider
+import com.clouway.bankapp.adapter.memcache.MemcacheSessionHandler
 import com.clouway.bankapp.adapter.web.JsonTransformer
 import com.clouway.bankapp.adapter.web.LoginController
 import com.clouway.bankapp.adapter.web.RegisterController
 import com.clouway.bankapp.adapter.web.TransactionController
+import com.clouway.bankapp.adapter.web.filter.SessionFilter
 import spark.Filter
 import spark.Response
 import spark.Spark.*
@@ -24,7 +28,7 @@ import java.util.*
 fun addCookie(res: Response): String {
 
     val UUIDValue = UUID.randomUUID().toString()
-    res.cookie("/", "SID", UUIDValue, 60000, false, true)
+    res.cookie("/", "SID", UUIDValue, 6000000, false, true)
     return UUIDValue
 
 }
@@ -33,13 +37,20 @@ class AppBootstrap : SparkApplication{
     override fun init() {
 
         val transformer= JsonTransformer()
-        val provider = DatastoreServiceProvider()
-        val userRepo = DatastoreUserRepository(provider)
-        val transactionRepo = DatastoreTransactionRepository(provider)
+        val datastoreProvider = DatastoreServiceProvider()
+        val memcacheProvider = MemcacheServiceProvider()
+        val sessionHandler = MemcacheSessionHandler(memcacheProvider)
+        val userRepo = DatastoreUserRepository(datastoreProvider)
+        val sessionRepo = DatastoreSessionRepository(datastoreProvider)
+        val transactionRepo = DatastoreTransactionRepository(datastoreProvider)
 
         val registerController = RegisterController(userRepo, transformer)
         val transactionController = TransactionController(transactionRepo, transformer)
-        val loginController = LoginController(userRepo, transformer)
+        val loginController = LoginController(userRepo, sessionRepo, transformer)
+
+
+        val sessionFilter = SessionFilter(sessionHandler,
+                sessionRepo, userRepo)
 
         options("/*"
         ) { request, response ->
@@ -64,14 +75,33 @@ class AppBootstrap : SparkApplication{
         before(Filter { req, res -> res.header("Access-Control-Allow-Origin", "*") })
 
         before(Filter { req, res ->
-            addCookie(res)
             res.raw().characterEncoding = "UTF-8"
         })
+
+        before(Filter { req, res ->
+            if(req.cookie("SID") == null){
+                addCookie(res)
+            }
+        })
+
+        before(sessionFilter)
+
+        get("/isLoggedIn"){
+            req, res ->
+            val isLogged = sessionFilter.isLoggedIn()
+            transformer.render(isLogged)
+        }
 
         get("/user/:username"){
             req, res ->
             val user = loginController.doGet(req, res)
             transformer.render(user)
+        }
+
+        get("/cookie"){
+            req, res ->
+            val cookie = req.cookie("SID")
+            transformer.render(cookie)
         }
 
         get("/transactions/:id"){

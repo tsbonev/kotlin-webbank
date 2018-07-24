@@ -36,8 +36,8 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
         override fun map(entity: Entity): User {
             return User(
                     entity.key.id,
-                    entity.properties["username"].toString(),
-                    entity.properties["password"].toString()
+                    entity.properties["username"] as String,
+                    entity.properties["password"] as String
             )
         }
     }
@@ -55,7 +55,7 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
                         andFilter("password", password)
                 )
 
-        if(provider.get()
+        if(provider.service
                         .prepare(Query("User")
                                 .setFilter(composite))
                         .asList(FetchOptions.Builder.withLimit(1))
@@ -78,7 +78,7 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
         val key = KeyFactory.createKey("User", id)
 
         return try{
-            val entity = provider.get().get(key)
+            val entity = provider.service.get(key)
             Optional.of(userRowMapper.map(entity))
         }catch (e: EntityNotFoundException){
             Optional.empty()
@@ -86,7 +86,7 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
     }
 
     override fun getAll(): List<User> {
-        val entityList = provider.get()
+        val entityList = provider.service
                 .prepare(Query("User")).asList(withLimit(limit))
 
         val userList = mutableListOf<User>()
@@ -102,21 +102,21 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
     override fun deleteById(id: Long) {
 
         val key = KeyFactory.createKey("User", id)
-        provider.get().delete(key)
+        provider.service.delete(key)
 
     }
 
     override fun update(user: User) {
         val key = KeyFactory.createKey("User", user.id)
-        val dsUser = provider.get().get(key)
+        val dsUser = provider.service.get(key)
         dsUser.setPropertiesFrom(userEntityMapper.map(user))
-        provider.get().put(dsUser)
+        provider.service.put(dsUser)
 
     }
 
     override fun getByUsername(username: String): Optional<User> {
 
-        val entity = provider.get()
+        val entity = provider.service
                 .prepare(Query("User")
                         .setFilter(andFilter("username", username)))
                 .asSingleEntity()
@@ -136,7 +136,7 @@ class DatastoreUserRepository(private val provider: ServiceProvider,
             throw UserAlreadyExistsException()
         }
 
-        provider.get().put(entity)
+        provider.service.put(entity)
 
     }
 }

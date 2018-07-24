@@ -1,18 +1,20 @@
 package com.clouway.bankapp.adapter.web
 
-import com.clouway.bankapp.core.User
-import com.clouway.bankapp.core.UserRegistrationRequest
-import com.clouway.bankapp.core.UserRepository
+import com.clouway.bankapp.core.*
+import org.eclipse.jetty.http.HttpStatus
 import spark.Request
 import spark.Response
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
+import java.time.Instant
 import java.util.*
 
 /**
  * @author tsbonev@gmail.com
  */
 class LoginController(private val userRepo: UserRepository,
-                      private val transformer: JsonTransformer) {
+                      private val sessionRepo: SessionRepository,
+                      private val transformer: JsonTransformer,
+                      private val sessionLifetime: Long = 600000) {
 
     fun doGet(req: Request, res: Response): User{
 
@@ -29,15 +31,36 @@ class LoginController(private val userRepo: UserRepository,
 
     fun doPost(req: Request, res: Response) {
 
+        println("Login initiated")
+        
         val request = transformer.from(req.body(), UserRegistrationRequest::class.java)
 
         val actualUser = userRepo.getByUsername(request.username)
-        return if(actualUser.isPresent && actualUser.get().password == request.password){
+        if(actualUser.isPresent){
+            
+            println("User found in db")
+            
+            val user = actualUser.get()
 
-            return res.status(200)
+            if(user.password != request.password){
+                res.status(HttpStatus.UNAUTHORIZED_401)
+                return
+            }
 
+            println("User password is correct")
+
+            sessionRepo.registerSession(Session(
+                    user.id,
+                    req.cookie("SID"),
+                    Date.from(Instant.now().plusSeconds(sessionLifetime)),
+                    true
+            ))
+
+            println("Session registered in db")
+
+            res.status(HttpStatus.OK_200)
         }else{
-            res.status(400)
+            res.status(HttpStatus.UNAUTHORIZED_401)
         }
     }
 

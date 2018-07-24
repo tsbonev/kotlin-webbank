@@ -29,7 +29,7 @@ class TransactionRepositoryTest {
         val userEntity = Entity("User", 1)
         userEntity.setProperty("username", "John")
         userEntity.setProperty("password", "password")
-        provider.get().put(userEntity)
+        provider.service.put(userEntity)
     }
 
     @After
