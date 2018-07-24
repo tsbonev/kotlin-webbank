@@ -2,14 +2,16 @@ package com.clouway.bankapp.adapter.memcache
 
 import com.clouway.bankapp.core.Session
 import com.clouway.bankapp.core.SessionNotFoundException
+import com.clouway.bankapp.core.User
 import java.util.*
+import kotlin.collections.LinkedHashMap
 
 /**
  * @author tsbonev@gmail.com
  */
-class MemcacheSessionHandler(private val provider: ServiceProvider) : SessionHandler {
+class MemcacheSessionHandler(private val provider: CacheServiceProvider) : SessionHandler {
 
-    private fun mapToSession(map: LinkedHashMap<*, *>): Session{
+    private fun mapToSession(map: LinkedHashMap<*, *>): Session {
         return Session(
                 map["userId"] as Long,
                 map["sessionId"] as String,
@@ -18,17 +20,33 @@ class MemcacheSessionHandler(private val provider: ServiceProvider) : SessionHan
         )
     }
 
-    override fun getSessionById(sessionId: String): Session {
-        val cachedSession = provider.service.get(sessionId)
-        if(cachedSession != null){
-            val sessionMap = cachedSession as LinkedHashMap<*, *>
-            return mapToSession(sessionMap)
-        }
-        throw SessionNotFoundException()
+    private fun mapToUser(map: LinkedHashMap<*, *>): User {
+        return User(
+                map["id"] as Long,
+                map["username"] as String,
+                ""
+        )
     }
 
-    override fun saveSessionInCache(session: Session) {
-        provider.service.put(session.sessionId, session.toMap())
+    override fun getSessionById(sessionId: String): Pair<Session, User>? {
+        val cachedSession = provider.service.get(sessionId)
+
+        return if (cachedSession is Pair<*, *>) {
+            val sessionMap = cachedSession.first as LinkedHashMap<*, *>
+            val userMap = cachedSession.second as LinkedHashMap<*, *>
+            Pair(mapToSession(sessionMap), mapToUser(userMap))
+        }else{
+            return null
+        }
+
+    }
+
+    override fun saveSessionInCache(session: Session, user: User) {
+        provider.service.put(session.sessionId, Pair<Any, Any>(session.toMap(), user.toMap()))
+    }
+
+    override fun terminateSession(sessionId: String) {
+        provider.service.delete(sessionId)
     }
 
 

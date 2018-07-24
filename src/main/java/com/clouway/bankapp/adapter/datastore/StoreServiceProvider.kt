@@ -5,7 +5,7 @@ import com.google.appengine.api.datastore.DatastoreService
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-interface ServiceProvider {
+interface StoreServiceProvider {
 
     val service: DatastoreService
 

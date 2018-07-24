@@ -14,7 +14,7 @@ import java.util.*
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreTransactionRepository(private val provider: ServiceProvider,
+class DatastoreTransactionRepository(private val provider: StoreServiceProvider,
                                      private val limit: Int = 100) : TransactionRepository {
 
     private val transactionRequestEntityMapper = object: EntityMapper<TransactionRequest>{

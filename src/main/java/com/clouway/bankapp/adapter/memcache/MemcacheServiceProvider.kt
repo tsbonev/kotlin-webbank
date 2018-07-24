@@ -6,7 +6,7 @@ import com.google.appengine.api.memcache.MemcacheServiceFactory
 /**
  * @author tsbonev@gmail.com
  */
-class MemcacheServiceProvider : ServiceProvider {
+class MemcacheServiceProvider : CacheServiceProvider {
     override val service: MemcacheService
             get() = MemcacheServiceFactory.getMemcacheService()
 }

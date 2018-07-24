@@ -12,7 +12,7 @@ import java.util.*
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreSessionRepository(private val provider: ServiceProvider,
+class DatastoreSessionRepository(private val provider: StoreServiceProvider,
                                  private val limit: Int = 100) : SessionRepository {
 
 
@@ -34,7 +34,7 @@ class DatastoreSessionRepository(private val provider: ServiceProvider,
         override fun map(entity: Entity): Session{
             return Session(
                     entity.properties["userId"] as Long,
-                    entity.key.toString(),
+                    entity.key.name,
                     entity.properties["expiresOn"] as Date,
                     entity.properties["isAuthenticated"] as Boolean
             )

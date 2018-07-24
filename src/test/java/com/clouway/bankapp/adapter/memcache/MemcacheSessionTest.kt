@@ -45,8 +45,8 @@ class MemcacheSessionTest {
         sessionMap["expiresOn"] = session.expiresOn
         sessionMap["isAuthenticated"] = session.isAuthenticated
 
-        mc.put(session.sessionId, sessionMap
-                , Expiration.onDate(Date.from(Instant.now().plusSeconds(2000))))
+        mc.put(session.sessionId, sessionMap,
+                Expiration.onDate(Date.from(Instant.now().plusSeconds(2000))))
 
         assertThat(mc.get(session.sessionId) == sessionMap, Is(true))
 
@@ -54,6 +54,24 @@ class MemcacheSessionTest {
         val sessionCache = retrievedSession as? LinkedHashMap<*, *>
 
         assertThat(sessionCache?.get("userId") == 1L, Is(true))
+
+    }
+
+    @Test
+    fun removeSessionFromMemcache(){
+
+        val sessionMap = mutableMapOf<String, Any>()
+        sessionMap["userId"] = session.userId
+        sessionMap["username"] = "John"
+        sessionMap["expiresOn"] = session.expiresOn
+        sessionMap["isAuthenticated"] = session.isAuthenticated
+
+        mc.put(session.sessionId, sessionMap
+                , Expiration.onDate(Date.from(Instant.now().plusSeconds(2000))))
+
+        mc.delete(session.sessionId)
+
+        assertThat(mc.get(session.sessionId) == null, Is(true))
 
     }
 

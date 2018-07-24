@@ -1,12 +1,21 @@
 package com.clouway.bankapp.adapter.web
 
+import com.clouway.bankapp.core.Session
+import org.jmock.AbstractExpectations.*
 import com.clouway.bankapp.core.SessionRepository
+import com.clouway.bankapp.core.User
 import com.clouway.bankapp.core.UserRepository
 import org.jmock.Expectations
 import org.jmock.Mockery
 import org.junit.Rule
 import org.junit.Test
 import org.jmock.integration.junit4.JUnitRuleMockery
+import org.junit.Assert.assertThat
+import spark.Request
+import spark.Response
+import java.time.Instant
+import java.util.*
+import org.hamcrest.CoreMatchers.`is` as Is
 
 
 /**
@@ -26,11 +35,86 @@ class LoginSystemTest {
     private val sessionRepo = context.mock(SessionRepository::class.java)
     private val transformer = JsonTransformer()
 
-    private val loginController = LoginController(userRepo, sessionRepo, transformer)
+    private val testDate = Date.from(Instant.now())
+
+    private val loginController = LoginController(userRepo,
+            sessionRepo,
+            transformer,
+            getExpirationDate = {testDate})
+
+    private val loginJSON = """
+        {
+        "username": "John",
+        "password": "password"
+        }
+    """.trimIndent()
+
+    private val testUser = User(1L, "John", "password")
+    private val possibleUser = Optional.of(testUser)
+    private val SID = "123"
+    private var statusReturn: Int = 0
+
+    private val req = object: Request(){
+        override fun body(): String {
+            return loginJSON
+        }
+        override fun cookie(name: String): String{
+            return SID
+        }
+    }
+
+    private val res = object: Response() {
+        override fun status(statusCode: Int){
+            statusReturn = statusCode
+        }
+    }
 
     @Test
     fun logInWithCorrectCredentials(){
 
+        val testSession = Session(
+                1,
+                SID,
+                testDate,
+                true
+        )
+
+        context.expecting {
+            oneOf(userRepo).getByUsername("John")
+            will(returnValue(possibleUser))
+            oneOf(sessionRepo).registerSession(testSession)
+        }
+
+        loginController.doPost(req, res)
+        assertThat(statusReturn == 200, Is(true))
+
+    }
+
+    @Test
+    fun rejectInvalidCredentials(){
+        val user = User(1L, "John", "wrong pass")
+        val possibleUser = Optional.of(user)
+
+        context.expecting {
+            oneOf(userRepo).getByUsername("John")
+            will(returnValue(possibleUser))
+        }
+
+        loginController.doPost(req, res)
+        assertThat(statusReturn == 401, Is(true))
+    }
+
+    @Test
+    fun userNotFound(){
+        val possibleUser = Optional.empty<User>()
+
+        context.expecting {
+            oneOf(userRepo).getByUsername("John")
+            will(returnValue(possibleUser))
+        }
+
+        loginController.doPost(req, res)
+        assertThat(statusReturn == 401, Is(true))
     }
 
 }

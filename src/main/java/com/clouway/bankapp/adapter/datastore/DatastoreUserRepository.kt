@@ -11,7 +11,7 @@ import java.util.*
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreUserRepository(private val provider: ServiceProvider,
+class DatastoreUserRepository(private val provider: StoreServiceProvider,
                               private val limit: Int = 100) : UserRepository {
 
     private val registrationEntityMapper = object: EntityMapper<UserRegistrationRequest>{

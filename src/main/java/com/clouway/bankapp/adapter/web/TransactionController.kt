@@ -1,5 +1,6 @@
 package com.clouway.bankapp.adapter.web
 
+import com.clouway.bankapp.adapter.web.filter.SessionFilter
 import com.clouway.bankapp.core.Transaction
 import com.clouway.bankapp.core.TransactionRepository
 import com.clouway.bankapp.core.TransactionRequest
@@ -11,10 +12,11 @@ import spark.Response
  * @author tsbonev@gmail.com
  */
 class TransactionController(private val transactionRepo: TransactionRepository,
-                            private val transformer: JsonTransformer) {
+                            private val transformer: JsonTransformer,
+                            private val sessionFilter: SessionFilter) {
 
     fun doGet(req: Request, res: Response): List<Transaction> {
-        return  transactionRepo.getUserTransactions(req.params(":id").toLong())
+        return  transactionRepo.getUserTransactions(sessionFilter.getUserContext(req.cookie("SID")).id)
     }
 
     fun doPost(req: Request, res: Response){

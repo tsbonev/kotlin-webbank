@@ -5,7 +5,7 @@ import com.google.appengine.api.memcache.MemcacheService
 /**
  * @author tsbonev@gmail.com
  */
-interface ServiceProvider {
+interface CacheServiceProvider {
 
     val service: MemcacheService
 

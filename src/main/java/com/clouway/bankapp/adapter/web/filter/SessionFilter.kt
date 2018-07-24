@@ -7,6 +7,7 @@ import spark.Filter
 import spark.Request
 import spark.Response
 import java.time.Instant
+import java.time.LocalDate
 import java.util.*
 
 /**
@@ -15,50 +16,78 @@ import java.util.*
 class SessionFilter(private val sessionHandler: SessionHandler,
                     private val sessionRepo: SessionRepository,
                     private val userRepo: UserRepository,
-                    val userContext: ThreadLocal<User> = ThreadLocal(),
-                    val sessionContext: ThreadLocal<Session> = ThreadLocal()) : Filter {
+                    private val getCurrentTime: () -> Date = {
+                        Date.from(Instant.now())
+                    } ) : Filter {
+    
+    fun getUserContext(sessionId: String): User{
+        val sessionContext = sessionHandler.getSessionById(sessionId)
 
-    fun isLoggedIn(): Boolean{
-       return userContext.get() != null && sessionContext.get() != null
+        return sessionContext?.second ?: throw SessionNotFoundException()
     }
 
-    fun logOut(){
-        userContext.remove()
-        sessionContext.remove()
+    fun getSessionContext(sessionId: String): Session{
+
+        val sessionContext = sessionHandler.getSessionById(sessionId)
+
+        return sessionContext?.first ?: throw SessionNotFoundException()
     }
 
-    private fun setUpSessionContext(session: Session){
+    fun logOut(sessionId: String) {
+        sessionRepo.terminateSession(sessionId)
+        sessionHandler.terminateSession(sessionId)
+    }
 
-        sessionContext.set(session)
-        val possibleUser = userRepo.getById(session.userId)
-        if(!possibleUser.isPresent) {
-            userContext.remove()
-            sessionContext.remove()
-            throw SessionNotFoundException()
+    fun isLoggedIn(sessionId: String): Boolean {
+
+        return if(sessionHandler.getSessionById(sessionId) != null){
+            true
+        }else{
+            val sessionInDb = sessionRepo.getSessionAvailableAt(sessionId, getCurrentTime())
+            validateDbSession(sessionInDb)
         }
-        userContext.set(userRepo.getById(session.userId).get())
+    }
+
+    private fun validateDbSession(possibleSession: Optional<Session>): Boolean{
+        if (!possibleSession.isPresent) {
+            return false
+        }
+
+        val foundSession = possibleSession.get()
+        val possibleUser = userRepo.getById(foundSession.userId)
+
+        if(!possibleUser.isPresent){
+            sessionRepo.terminateSession(foundSession.sessionId)
+            return false
+        }
+
+        val foundUser = possibleUser.get()
+        setUpSessionCache(foundSession, foundUser)
+        return true
+    }
+
+    /**
+     * Adds a cookie to the user's browser.
+     *
+     * @param res response
+     */
+    private fun addCookie(res: Response) {
+        val UUIDValue = UUID.randomUUID().toString()
+        res.cookie("/", "SID", UUIDValue, 6000000, false, true)
+    }
+
+    private fun setUpSessionCache(session: Session, user: User) {
+        sessionHandler.saveSessionInCache(session, user)
     }
 
     override fun handle(req: Request, res: Response) {
-        val sessionId = req.cookie("SID")
-        if(sessionId != null){
-            try{
-                val possibleSession = sessionHandler.getSessionById(sessionId)
-                setUpSessionContext(possibleSession)
-                res.status(HttpStatus.FOUND_302)
-            }catch (e: SessionNotFoundException){
-                try{
-                    val datasourceSession = sessionRepo
-                            .getSessionAvailableAt(sessionId, Date.from(Instant.now()))
-                    if(!datasourceSession.isPresent) throw SessionNotFoundException()
 
-                    setUpSessionContext(datasourceSession.get())
-                    res.status(HttpStatus.FOUND_302)
-                }catch (e: SessionNotFoundException){
-                    res.status(HttpStatus.UNAUTHORIZED_401)
-                }
-            }
-        }
+        if(req.cookie("SID") == null) addCookie(res)
+
+        val sessionId = req.cookie("SID").toString()
+
+        if(isLoggedIn(sessionId)) res.status(HttpStatus.FOUND_302)
+        else res.status(HttpStatus.NOT_FOUND_404)
 
     }
 
