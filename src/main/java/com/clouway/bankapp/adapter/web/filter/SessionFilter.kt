@@ -86,7 +86,6 @@ class SessionFilter(private val sessionHandler: SessionHandler,
             addCookie(res)
         }
 
-        println("---SessionFilter--${req.cookie("SID")}")
         val sessionId = req.cookie("SID").toString()
 
         if(isLoggedIn(sessionId)) res.status(HttpStatus.FOUND_302)

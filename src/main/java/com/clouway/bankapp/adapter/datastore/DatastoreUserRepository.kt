@@ -48,17 +48,12 @@ class DatastoreUserRepository(private val provider: StoreServiceProvider,
     }
 
 
-    private fun checkIfUserExists(username: String, password: String): Boolean{
-
-        val composite = Query.CompositeFilterOperator
-                .and(andFilter("username", username),
-                        andFilter("password", password)
-                )
+    private fun checkIfUserExists(username: String): Boolean{
 
         if(provider.service
                         .prepare(Query("User")
-                                .setFilter(composite))
-                        .asList(FetchOptions.Builder.withLimit(1))
+                                .setFilter(andFilter("username", username)))
+                        .asList(withLimit(1))
                         .size != 0){
             return true
         }
@@ -68,10 +63,16 @@ class DatastoreUserRepository(private val provider: StoreServiceProvider,
 
     override fun checkPassword(user: User): Boolean {
 
-        if(checkIfUserExists(user.username, user.password))
-            return true
-        return false
+        val possbileUser = getByUsername(user.username)
 
+        if(possbileUser.isPresent){
+            val retrievedUser = possbileUser.get()
+
+            if(retrievedUser.password == user.password){
+                return true
+            }
+        }
+        return false
     }
 
     override fun getById(id: Long): Optional<User> {
@@ -132,7 +133,7 @@ class DatastoreUserRepository(private val provider: StoreServiceProvider,
     override fun registerIfNotExists(registerRequest: UserRegistrationRequest) {
         val entity = registrationEntityMapper.map(registerRequest)
 
-        if(checkIfUserExists(registerRequest.username, registerRequest.password)){
+        if(checkIfUserExists(registerRequest.username)){
             throw UserAlreadyExistsException()
         }
 

@@ -27,7 +27,6 @@ class AppBootstrap : SparkApplication{
         val memcacheProvider = MemcacheServiceProvider()
         val sessionHandler = MemcacheSessionHandler(memcacheProvider)
 
-
         val userRepo = DatastoreUserRepository(datastoreProvider)
         val sessionRepo = DatastoreSessionRepository(datastoreProvider)
         val transactionRepo = DatastoreTransactionRepository(datastoreProvider)
@@ -51,7 +50,7 @@ class AppBootstrap : SparkApplication{
             try{
                 return@Route sessionFilter.getUserContext(req.cookie("SID"))
             }catch (e: SessionNotFoundException){
-                return@Route "Not logged in"
+                return@Route ""
             }
         }, transformer)
 
@@ -76,7 +75,7 @@ class AppBootstrap : SparkApplication{
             transformer.render(stats)
         }
 
-        post("/logout", Route{
+        get("/logout", Route{
             req, res ->
             sessionFilter.logOut(req.cookie("SID").toString())
         }, transformer)
