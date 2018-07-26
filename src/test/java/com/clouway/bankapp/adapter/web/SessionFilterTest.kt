@@ -74,7 +74,7 @@ class SessionFilterTest {
     }
 
     @Test
-    fun findSessionInMemcache(){
+    fun sessionPresentInMemcache(){
 
         context.expecting {
             oneOf(sessionHandler).getSessionById("123")
@@ -97,6 +97,7 @@ class SessionFilterTest {
             oneOf(userRepo).getById(1L)
             will(returnValue(Optional.of(testUser)))
             oneOf(sessionHandler).saveSessionInCache(testSession, testUser)
+            oneOf(sessionRepo).refreshSession(testSession)
         }
 
         sessionFilter.handle(req, res)
@@ -119,7 +120,7 @@ class SessionFilterTest {
     }
 
     @Test
-    fun userNotPresentInHandler(){
+    fun userNotPresent(){
 
         context.expecting {
             oneOf(sessionHandler).getSessionById("123")

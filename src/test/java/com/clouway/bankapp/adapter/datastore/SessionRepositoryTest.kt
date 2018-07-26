@@ -24,7 +24,8 @@ class SessionRepositoryTest {
     private val now = Date.from(Instant.now())
     private val yesterday = Date.from(Instant.now().minusSeconds(86401))
 
-    private val session = Session(1, "123", yesterday, true)
+    private val activeSession = Session(1, "123", tomorrow, true)
+    private val expiredSession = Session(1, "123", yesterday, true)
 
     @Before
     fun setUp() {
@@ -39,9 +40,7 @@ class SessionRepositoryTest {
     @Test
     fun shouldRegisterSession(){
 
-        val session = Session(1, "123", tomorrow, true)
-
-        sessionRepo.registerSession(session)
+        sessionRepo.registerSession(activeSession)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(true))
 
@@ -50,7 +49,7 @@ class SessionRepositoryTest {
     @Test
     fun shouldNotGetExpiredSession(){
 
-        sessionRepo.registerSession(session)
+        sessionRepo.registerSession(expiredSession)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(false))
 
@@ -59,7 +58,7 @@ class SessionRepositoryTest {
     @Test
     fun shouldDeleteExpiringSession(){
 
-        sessionRepo.registerSession(session)
+        sessionRepo.registerSession(expiredSession)
         sessionRepo.deleteSessionsExpiringBefore(now)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(false))
@@ -69,8 +68,8 @@ class SessionRepositoryTest {
     @Test
     fun shouldTerminateSession(){
 
-        sessionRepo.registerSession(session)
-        sessionRepo.terminateSession(session.sessionId)
+        sessionRepo.registerSession(activeSession)
+        sessionRepo.terminateSession(activeSession.sessionId)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(false))
 
@@ -94,10 +93,10 @@ class SessionRepositoryTest {
     @Test
     fun shouldRefreshSession(){
 
-        sessionRepo.registerSession(session)
-        sessionRepo.refreshSession(session)
+        sessionRepo.registerSession(expiredSession)
+        sessionRepo.refreshSession(expiredSession)
 
-        assertThat(sessionRepo.getSessionAvailableAt(session.sessionId, now).isPresent, Is(true))
+        assertThat(sessionRepo.getSessionAvailableAt(expiredSession.sessionId, now).isPresent, Is(true))
 
     }
 

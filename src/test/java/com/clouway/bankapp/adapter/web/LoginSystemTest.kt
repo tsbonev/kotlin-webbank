@@ -1,10 +1,7 @@
 package com.clouway.bankapp.adapter.web
 
-import com.clouway.bankapp.core.Session
+import com.clouway.bankapp.core.*
 import org.jmock.AbstractExpectations.*
-import com.clouway.bankapp.core.SessionRepository
-import com.clouway.bankapp.core.User
-import com.clouway.bankapp.core.UserRepository
 import org.jmock.Expectations
 import org.jmock.Mockery
 import org.junit.Rule
@@ -41,6 +38,8 @@ class LoginSystemTest {
             sessionRepo,
             transformer,
             getExpirationDate = {testDate})
+
+    private val registerController = RegisterController(userRepo, transformer)
 
     private val loginJSON = """
         {
@@ -91,7 +90,7 @@ class LoginSystemTest {
     }
 
     @Test
-    fun rejectInvalidCredentials(){
+    fun rejectInvalidLoginCredentials(){
         val user = User(1L, "John", "wrong pass")
         val possibleUser = Optional.of(user)
 
@@ -105,7 +104,7 @@ class LoginSystemTest {
     }
 
     @Test
-    fun userNotFound(){
+    fun userNotFoundInLogin(){
         val possibleUser = Optional.empty<User>()
 
         context.expecting {
@@ -115,6 +114,38 @@ class LoginSystemTest {
 
         loginController.doPost(req, res)
         assertThat(statusReturn == 401, Is(true))
+    }
+
+    @Test
+    fun registerUserForFirstTime(){
+
+        val userRegistrationRequest = UserRegistrationRequest("John", "password")
+
+        context.expecting {
+            oneOf(userRepo)
+                    .registerIfNotExists(userRegistrationRequest)
+        }
+
+        registerController.doPost(req, res)
+        assertThat(statusReturn == 201, Is(true))
+
+    }
+
+
+    @Test
+    fun rejectRegisteringTakenUsername(){
+
+        val userRegistrationRequest = UserRegistrationRequest("John", "password")
+
+        context.expecting {
+            oneOf(userRepo)
+                    .registerIfNotExists(userRegistrationRequest)
+            will(throwException(UserAlreadyExistsException()))
+        }
+
+        registerController.doPost(req, res)
+        assertThat(statusReturn == 400, Is(true))
+
     }
 
 }

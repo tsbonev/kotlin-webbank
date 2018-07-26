@@ -15,8 +15,6 @@ import spark.Filter
 import spark.Route
 import spark.Spark.*
 import spark.kotlin.before
-import spark.kotlin.get
-import spark.kotlin.post
 import spark.servlet.SparkApplication
 
 class AppBootstrap : SparkApplication{
@@ -39,18 +37,24 @@ class AppBootstrap : SparkApplication{
         val transactionController = TransactionController(transactionRepo, transformer, sessionFilter)
         val loginController = LoginController(userRepo, sessionRepo, transformer)
 
+        
         before(Filter { req, res ->
             res.raw().characterEncoding = "UTF-8"
         })
 
         before(sessionFilter)
 
+        after(Filter {req, res ->
+            res.type("application/json")
+        })
+
+
         get("/user", Route{
             req, res ->
             try{
                 return@Route sessionFilter.getUserContext(req.cookie("SID"))
             }catch (e: SessionNotFoundException){
-                return@Route ""
+                return@Route Any()
             }
         }, transformer)
 
@@ -81,17 +85,17 @@ class AppBootstrap : SparkApplication{
         }, transformer)
 
 
-        post("/transactions/save", "application/json", Route{
+        post("/transactions/save", Route{
             req, res ->
             transactionController.doPost(req, res)
         }, transformer)
 
-        post("/register", "application/json", Route{
+        post("/register", Route{
             req, res ->
             registerController.doPost(req, res)
         }, transformer)
 
-        post("/login", "application/json", Route{
+        post("/login", Route{
             req, res ->
             loginController.doPost(req, res)
         }, transformer)

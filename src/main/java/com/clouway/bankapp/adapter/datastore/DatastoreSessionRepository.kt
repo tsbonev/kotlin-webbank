@@ -14,10 +14,8 @@ import java.util.*
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
 class DatastoreSessionRepository(private val provider: StoreServiceProvider,
-                                 private val limit: Int = 100) : SessionRepository {
-
-
-    private val sessionRefreshTime = 86400L
+                                 private val limit: Int = 100,
+                                 private val sessionRefreshTime: Long = 86400L) : SessionRepository {
 
     private val sessionEntityMapper = object: EntityMapper<Session>{
         override fun map(obj: Session): Entity {

@@ -1,6 +1,7 @@
 package com.clouway.bankapp.adapter.web
 
 import com.clouway.bankapp.adapter.web.filter.SessionFilter
+import com.clouway.bankapp.core.SessionNotFoundException
 import com.clouway.bankapp.core.Transaction
 import com.clouway.bankapp.core.TransactionRepository
 import com.clouway.bankapp.core.TransactionRequest
@@ -16,20 +17,33 @@ class TransactionController(private val transactionRepo: TransactionRepository,
                             private val sessionFilter: SessionFilter) {
 
     fun doGet(req: Request, res: Response): List<Transaction> {
-        return  transactionRepo.getUserTransactions(sessionFilter.getUserContext(req.cookie("SID")).id)
+        return try{
+            val transactions = transactionRepo
+                    .getUserTransactions(sessionFilter.getUserContext(req.cookie("SID")).id)
+            res.status(HttpStatus.FOUND_302)
+            transactions
+        }catch (e: SessionNotFoundException){
+            res.status(HttpStatus.UNAUTHORIZED_401)
+            emptyList()
+        }
     }
 
     fun doPost(req: Request, res: Response){
         res.type("application/json")
 
-        val transactionRequestFromJson = transformer.from(req.body(), TransactionRequest::class.java)
-        val completeTransactionRequest = TransactionRequest(
-                sessionFilter.getUserContext(req.cookie("SID")).id,
-                transactionRequestFromJson.operation,
-                transactionRequestFromJson.amount)
+        try{
+            val transactionRequestFromJson = transformer.from(req.body(), TransactionRequest::class.java)
+            val completeTransactionRequest = TransactionRequest(
+                    sessionFilter.getUserContext(req.cookie("SID")).id,
+                    transactionRequestFromJson.operation,
+                    transactionRequestFromJson.amount)
 
-        transactionRepo.save(completeTransactionRequest)
-        res.status(HttpStatus.CREATED_201)
+            transactionRepo.save(completeTransactionRequest)
+            res.status(HttpStatus.CREATED_201)
+        }catch (e: SessionNotFoundException){
+            res.status(HttpStatus.UNAUTHORIZED_401)
+        }
+
     }
 
 }

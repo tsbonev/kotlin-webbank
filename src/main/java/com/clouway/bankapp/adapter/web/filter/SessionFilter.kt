@@ -16,9 +16,10 @@ import java.util.*
 class SessionFilter(private val sessionHandler: SessionHandler,
                     private val sessionRepo: SessionRepository,
                     private val userRepo: UserRepository,
+                    private val sessionAge: Int = 600000,
                     private val getCurrentTime: () -> Date = {
                         Date.from(Instant.now())
-                    } ) : Filter {
+                    }) : Filter {
 
     fun getUserContext(sessionId: String): User{
         val sessionContext = sessionHandler.getSessionById(sessionId)
@@ -63,6 +64,7 @@ class SessionFilter(private val sessionHandler: SessionHandler,
 
         val foundUser = possibleUser.get()
         setUpSessionCache(foundSession, foundUser)
+        sessionRepo.refreshSession(foundSession)
         return true
     }
 
@@ -73,7 +75,7 @@ class SessionFilter(private val sessionHandler: SessionHandler,
      */
     private fun addCookie(res: Response) {
         val UUIDValue = UUID.randomUUID().toString()
-        res.cookie("/", "SID", UUIDValue, 6000000, false, true)
+        res.cookie("/", "SID", UUIDValue, sessionAge, false, true)
     }
 
     private fun setUpSessionCache(session: Session, user: User) {
