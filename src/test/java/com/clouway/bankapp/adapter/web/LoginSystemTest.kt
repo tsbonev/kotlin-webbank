@@ -1,6 +1,7 @@
 package com.clouway.bankapp.adapter.web
 
 import com.clouway.bankapp.core.*
+import org.eclipse.jetty.http.HttpStatus
 import org.jmock.AbstractExpectations.*
 import org.jmock.Expectations
 import org.jmock.Mockery
@@ -85,7 +86,7 @@ class LoginSystemTest {
         }
 
         loginController.doPost(req, res)
-        assertThat(statusReturn == 200, Is(true))
+        assertThat(statusReturn == HttpStatus.OK_200, Is(true))
 
     }
 
@@ -100,7 +101,7 @@ class LoginSystemTest {
         }
 
         loginController.doPost(req, res)
-        assertThat(statusReturn == 401, Is(true))
+        assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
     }
 
     @Test
@@ -113,7 +114,7 @@ class LoginSystemTest {
         }
 
         loginController.doPost(req, res)
-        assertThat(statusReturn == 401, Is(true))
+        assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
     }
 
     @Test
@@ -127,7 +128,7 @@ class LoginSystemTest {
         }
 
         registerController.doPost(req, res)
-        assertThat(statusReturn == 201, Is(true))
+        assertThat(statusReturn == HttpStatus.CREATED_201, Is(true))
 
     }
 
@@ -144,7 +145,7 @@ class LoginSystemTest {
         }
 
         registerController.doPost(req, res)
-        assertThat(statusReturn == 400, Is(true))
+        assertThat(statusReturn == HttpStatus.BAD_REQUEST_400, Is(true))
 
     }
 

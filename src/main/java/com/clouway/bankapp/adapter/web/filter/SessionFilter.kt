@@ -90,7 +90,7 @@ class SessionFilter(private val sessionHandler: SessionHandler,
 
         val sessionId = req.cookie("SID").toString()
 
-        if(isLoggedIn(sessionId)) res.status(HttpStatus.FOUND_302)
+        if(isLoggedIn(sessionId)) res.status(HttpStatus.OK_200)
         else res.status(HttpStatus.NOT_FOUND_404)
 
     }

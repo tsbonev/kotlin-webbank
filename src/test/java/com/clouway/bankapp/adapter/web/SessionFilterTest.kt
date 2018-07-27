@@ -82,7 +82,7 @@ class SessionFilterTest {
         }
 
         sessionFilter.handle(req, res)
-        assertThat(statusReturn == HttpStatus.FOUND_302, Is(true))
+        assertThat(statusReturn == HttpStatus.OK_200, Is(true))
 
     }
 
@@ -101,7 +101,7 @@ class SessionFilterTest {
         }
 
         sessionFilter.handle(req, res)
-        assertThat(statusReturn == HttpStatus.FOUND_302, Is(true))
+        assertThat(statusReturn == HttpStatus.OK_200, Is(true))
 
     }
 

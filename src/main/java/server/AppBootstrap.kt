@@ -37,7 +37,7 @@ class AppBootstrap : SparkApplication{
         val transactionController = TransactionController(transactionRepo, transformer, sessionFilter)
         val loginController = LoginController(userRepo, sessionRepo, transformer)
 
-        
+
         before(Filter { req, res ->
             res.raw().characterEncoding = "UTF-8"
         })
@@ -79,13 +79,8 @@ class AppBootstrap : SparkApplication{
             transformer.render(stats)
         }
 
-        get("/logout", Route{
-            req, res ->
-            sessionFilter.logOut(req.cookie("SID").toString())
-        }, transformer)
 
-
-        post("/transactions/save", Route{
+        post("/transactions", Route{
             req, res ->
             transactionController.doPost(req, res)
         }, transformer)
@@ -98,6 +93,11 @@ class AppBootstrap : SparkApplication{
         post("/login", Route{
             req, res ->
             loginController.doPost(req, res)
+        }, transformer)
+
+        post("/logout", Route{
+            req, res ->
+            sessionFilter.logOut(req.cookie("SID").toString())
         }, transformer)
 
     }

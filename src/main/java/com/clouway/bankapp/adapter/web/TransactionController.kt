@@ -20,7 +20,7 @@ class TransactionController(private val transactionRepo: TransactionRepository,
         return try{
             val transactions = transactionRepo
                     .getUserTransactions(sessionFilter.getUserContext(req.cookie("SID")).id)
-            res.status(HttpStatus.FOUND_302)
+            res.status(HttpStatus.OK_200)
             transactions
         }catch (e: SessionNotFoundException){
             res.status(HttpStatus.UNAUTHORIZED_401)
