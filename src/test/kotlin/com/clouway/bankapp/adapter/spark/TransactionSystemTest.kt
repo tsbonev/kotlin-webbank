@@ -1,10 +1,12 @@
 package com.clouway.bankapp.adapter.spark
 
-import com.clouway.bankapp.adapter.gae.memcache.SessionHandler
-import com.clouway.bankapp.core.security.SecurityFilter
 import com.clouway.bankapp.core.*
+import com.clouway.bankapp.core.security.SessionHandler
+import com.clouway.bankapp.core.security.SessionLoader
 import org.eclipse.jetty.http.HttpStatus
+import org.eclipse.jetty.server.session.SessionContext
 import org.jmock.AbstractExpectations.returnValue
+import org.jmock.AbstractExpectations.throwException
 import org.jmock.Expectations
 import org.jmock.Mockery
 import org.jmock.integration.junit4.JUnitRuleMockery
@@ -32,22 +34,19 @@ class TransactionSystemTest {
     }
 
     private val transactionRepo = context.mock(TransactionRepository::class.java)
-    private val userRepo = context.mock(UserRepository::class.java)
     private val sessionHandler = context.mock(SessionHandler::class.java)
-    private val sessionRepo = context.mock(SessionRepository::class.java)
+
+    private val sessionLoader = SessionLoader(sessionHandler)
 
     private val testDate = Date.from(Instant.now())
 
-    private val sessionFilter = SecurityFilter(sessionHandler, sessionRepo, userRepo, getCurrentTime = { testDate })
     private val transformer = JsonTransformer()
 
 
-    private val transactionController = TransactionController(transactionRepo,
-            transformer, sessionFilter)
+    private val listTransactionController = ListTransactionController(transactionRepo)
+    private val saveTransactionController = SaveTransactionController(transactionRepo, transformer)
 
-    private val testSession = Session(1L, "123", testDate, true)
-    private val testUser = User(1L, "John", "password")
-    private val sessionUserPair = Pair(testSession, testUser)
+    private val testSession = Session(1L, "123", testDate, "John", true)
     private val SID = "123"
     private var statusReturn: Int = 0
 
@@ -60,6 +59,11 @@ class TransactionSystemTest {
     """.trimIndent()
 
     private val req = object: Request(){
+
+        override fun headers(header: String?): String {
+            return SID
+        }
+
         override fun body(): String {
             return transactionJson
         }
@@ -84,12 +88,12 @@ class TransactionSystemTest {
 
         context.expecting {
             oneOf(sessionHandler).getSessionById(SID)
-            will(returnValue(sessionUserPair))
+            will(returnValue(testSession))
             oneOf(transactionRepo).getUserTransactions(1L)
             will(returnValue(emptyList<Transaction>()))
         }
 
-        transactionController.doGet(req, res)
+        SecuredController(listTransactionController, sessionLoader).handle(req, res)
         assertThat(statusReturn == HttpStatus.OK_200, Is(true))
     }
 
@@ -98,9 +102,10 @@ class TransactionSystemTest {
 
         context.expecting {
             oneOf(sessionHandler).getSessionById(SID)
+            will(throwException(SessionNotFoundException()))
         }
 
-        transactionController.doGet(req, res)
+        SecuredController(listTransactionController, sessionLoader).handle(req, res)
         assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
 
     }
@@ -110,13 +115,13 @@ class TransactionSystemTest {
 
         context.expecting {
             oneOf(sessionHandler).getSessionById(SID)
-            will(returnValue(sessionUserPair))
+            will(returnValue(testSession))
 
             oneOf(transactionRepo).save(transactionRequest)
 
         }
 
-        transactionController.doPost(req, res)
+        SecuredController(saveTransactionController, sessionLoader).handle(req, res)
         assertThat(statusReturn == HttpStatus.CREATED_201, Is(true))
     }
 
@@ -125,9 +130,10 @@ class TransactionSystemTest {
 
         context.expecting {
             oneOf(sessionHandler).getSessionById(SID)
+            will(throwException(SessionNotFoundException()))
         }
 
-        transactionController.doPost(req, res)
+        SecuredController(saveTransactionController, sessionLoader).handle(req, res)
         assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
 
     }

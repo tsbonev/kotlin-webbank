@@ -1,6 +1,10 @@
 package com.clouway.bankapp.adapter.memcache
 
+import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionHandler
+import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionRepository
+import com.clouway.bankapp.adapter.gae.memcache.MemcacheSessionHandler
 import com.clouway.bankapp.core.Session
+import com.clouway.bankapp.core.SessionNotFoundException
 import com.clouway.bankapp.core.User
 import com.google.appengine.api.memcache.Expiration
 import com.google.appengine.api.memcache.MemcacheServiceFactory
@@ -12,6 +16,8 @@ import org.junit.Test
 import java.time.Instant
 import java.util.*
 import org.junit.Assert.assertThat
+import org.junit.Rule
+import rule.MemcacheRule
 import kotlin.collections.LinkedHashMap
 import org.hamcrest.CoreMatchers.`is` as Is
 
@@ -20,57 +26,38 @@ import org.hamcrest.CoreMatchers.`is` as Is
  */
 class MemcacheSessionTest {
 
-    private val helper = LocalServiceTestHelper(LocalMemcacheServiceTestConfig())
-    private val mc = MemcacheServiceFactory.getMemcacheService()
+    @Rule
+    @JvmField
+    val helper: MemcacheRule = MemcacheRule()
+
     private val yesterday = Date.from(Instant.now().minusSeconds(86401))
 
-    private val session = Session(1, "123SID", yesterday, true)
-    private val user = User(1L, "John", "password")
+    private val sessionRepo = DatastoreSessionRepository()
+    private val persistentSessionHandler = DatastoreSessionHandler(sessionRepo)
+    private val cachedSessionHandler = MemcacheSessionHandler(persistentSessionHandler)
 
-    private val sessionMap = session.toMap()
-    private val userMap = user.toMap()
-
-    private val sessionUserPair = Pair(sessionMap, userMap)
-
-    @Before
-    fun setUp() {
-        helper.setUp()
-    }
-
-    @After
-    fun tearDown() {
-        helper.tearDown()
-    }
-
+    private val session = Session(1, "123SID", yesterday, "John",true)
 
 
     @Test
-    fun saveSessionUserPairInMemcache(){
+    fun saveSessionInMemcache(){
 
-        mc.put(session.sessionId, sessionUserPair,
-                Expiration.onDate(Date.from(Instant.now().plusSeconds(2000))))
+        cachedSessionHandler.saveSession(session)
 
-        assertThat(mc.get(session.sessionId) == sessionUserPair, Is(true))
+        val retrievedSession = cachedSessionHandler.getSessionById(session.sessionId)
 
-        val retrievedSession = mc.get(session.sessionId) as? Pair<*, *>
-        val sessionCache = retrievedSession?.first as? LinkedHashMap<*, *>
-        val userCache = retrievedSession?.second as? LinkedHashMap<*, *>
-
-        assertThat(sessionCache?.get("userId") == 1L, Is(true))
-        assertThat(userCache?.get("id") == 1L, Is(true))
+        assertThat(retrievedSession == session, Is(true))
 
     }
 
-    @Test
-    fun removeSessionUserPairFromMemcache(){
+    @Test(expected = SessionNotFoundException::class)
+    fun removeSessionFromMemcache(){
 
-        mc.put(session.sessionId, sessionUserPair
-                , Expiration.onDate(Date.from(Instant.now().plusSeconds(2000))))
+        cachedSessionHandler.saveSession(session)
 
-        mc.delete(session.sessionId)
+        cachedSessionHandler.terminateSession(session.sessionId)
 
-        assertThat(mc.get(session.sessionId) == null, Is(true))
-
+        cachedSessionHandler.getSessionById(session.sessionId)
     }
 
 }

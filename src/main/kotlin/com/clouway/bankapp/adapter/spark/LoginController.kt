@@ -1,6 +1,7 @@
 package com.clouway.bankapp.adapter.spark
 
 import com.clouway.bankapp.core.*
+import com.clouway.bankapp.core.security.SessionHandler
 import org.eclipse.jetty.http.HttpStatus
 import spark.Request
 import spark.Response
@@ -11,39 +12,40 @@ import java.util.*
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
 class LoginController(private val userRepo: UserRepository,
-                      private val sessionRepo: SessionRepository,
+                      private val sessionHandler: SessionHandler,
                       private val transformer: JsonTransformer,
                       private val sessionLifetime: Long = 600000,
                       private val getExpirationDate: () -> Date = {
                                Date.from(Instant.now().plusSeconds(sessionLifetime))
-                           }) {
+                           }) : Controller {
 
-    fun doPost(req: Request, res: Response) {
+    override fun handle(request: Request, response: Response): Any? {
 
-        val request = transformer.from(req.body(), UserRegistrationRequest::class.java)
+        val loginRequest = transformer.from(request.body(), UserRegistrationRequest::class.java)
 
-        val actualUser = userRepo.getByUsername(request.username)
+        val actualUser = userRepo.getByUsername(loginRequest.username)
 
         if(actualUser.isPresent){
-            
+
             val user = actualUser.get()
 
-            if(user.password != request.password){
-                res.status(HttpStatus.UNAUTHORIZED_401)
-                return
+            if(user.password != loginRequest.password){
+                return response.status(HttpStatus.UNAUTHORIZED_401)
             }
 
-            sessionRepo.registerSession(Session(
-                    user.id,
-                    req.cookie("SID").toString(),
-                    getExpirationDate(),
-                    true
-            ))
+            try{
+                sessionHandler.saveSession(Session(
+                        user.id,
+                        request.cookie("SID").toString(),
+                        getExpirationDate(),
+                        user.username,
+                        true
+                ))
+            }catch (e: UserAlreadyHasSessionException){}
 
-            res.status(HttpStatus.OK_200)
+            return response.status(HttpStatus.OK_200)
         }else{
-            res.status(HttpStatus.UNAUTHORIZED_401)
+            return response.status(HttpStatus.UNAUTHORIZED_401)
         }
     }
-
 }

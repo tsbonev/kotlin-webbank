@@ -2,26 +2,26 @@ package com.clouway.bankapp.adapter.gae.datastore
 
 import com.clouway.bankapp.core.Session
 import com.clouway.bankapp.core.SessionRepository
-import com.google.appengine.api.datastore.Entity
-import com.google.appengine.api.datastore.EntityNotFoundException
+import com.google.appengine.api.datastore.*
 import com.google.appengine.api.datastore.FetchOptions.Builder.withLimit
-import com.google.appengine.api.datastore.KeyFactory
-import com.google.appengine.api.datastore.Query
 import java.time.Instant
 import java.util.*
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreSessionRepository(private val provider: StoreServiceProvider,
-                                 private val limit: Int = 100,
+class DatastoreSessionRepository(private val limit: Int = 100,
                                  private val sessionRefreshTime: Long = 86400L) : SessionRepository {
+
+    private val service: DatastoreService
+            get() = DatastoreServiceFactory.getDatastoreService()
 
     private val sessionEntityMapper = object: EntityMapper<Session> {
         override fun map(obj: Session): Entity {
             val entity = Entity("Session", obj.sessionId)
 
             entity.setProperty("userId", obj.userId)
+            entity.setProperty("username", obj.username)
             entity.setProperty("expiresOn", obj.expiresOn)
             entity.setProperty("isAuthenticated", obj.isAuthenticated)
 
@@ -35,13 +35,14 @@ class DatastoreSessionRepository(private val provider: StoreServiceProvider,
                     entity.properties["userId"] as Long,
                     entity.key.name,
                     entity.properties["expiresOn"] as Date,
+                    entity.properties["username"] as String,
                     entity.properties["isAuthenticated"] as Boolean
             )
         }
     }
 
     private fun getSessionEntityList(date: Date): List<Entity>{
-        return provider.service
+        return service
                 .prepare(Query("Session")
                         .setFilter(greaterThanFilter("expiresOn", date)))
                 .asList(withLimit(limit))
@@ -53,29 +54,29 @@ class DatastoreSessionRepository(private val provider: StoreServiceProvider,
     }
 
     override fun registerSession(session: Session) {
-        provider.service.put(sessionEntityMapper.map(session))
+        service.put(sessionEntityMapper.map(session))
     }
 
     override fun refreshSession(session: Session) {
         val key = KeyFactory.createKey("Session", session.sessionId)
-        val sessionEntity = provider.service.get(key)
+        val sessionEntity = service.get(key)
         sessionEntity.setProperty("expiresOn", Date.from(Instant.now()
                 .plusSeconds(sessionRefreshTime)))
 
-        provider.service.put(sessionEntity)
+        service.put(sessionEntity)
 
     }
 
     override fun terminateSession(sessionId: String) {
         val key = KeyFactory.createKey("Session", sessionId)
-        provider.service.delete(key)
+        service.delete(key)
     }
 
     override fun deleteSessionsExpiringBefore(date: Date) {
         val sessionEntityList = getSessionEntityList(date)
 
         for(session in sessionEntityList){
-            provider.service.delete(session.key)
+            service.delete(session.key)
         }
 
     }
@@ -85,7 +86,7 @@ class DatastoreSessionRepository(private val provider: StoreServiceProvider,
         val sessionKey = KeyFactory.createKey("Session", sessionId)
 
         return try{
-            val sessionEntity = provider.service.get(sessionKey)
+            val sessionEntity = service.get(sessionKey)
             val sessionExpirationDate = sessionEntity.properties["expiresOn"] as Date
 
             if(sessionExpirationDate.before(date)){
@@ -103,12 +104,10 @@ class DatastoreSessionRepository(private val provider: StoreServiceProvider,
 
     override fun getActiveSessionsCount(): Int {
 
-        return provider.service
+        return service
                 .prepare(Query("Session").setKeysOnly()
                         .setFilter(greaterThanFilter("expiresOn", Date.from(Instant.now()))))
                 .asList(withLimit(limit)).size
 
     }
-
-
 }

@@ -1,6 +1,7 @@
 package com.clouway.bankapp.adapter.spark
 
 import com.clouway.bankapp.core.*
+import com.clouway.bankapp.core.security.SessionHandler
 import org.eclipse.jetty.http.HttpStatus
 import org.jmock.AbstractExpectations.*
 import org.jmock.Expectations
@@ -30,17 +31,21 @@ class LoginSystemTest {
     }
 
     private val userRepo = context.mock(UserRepository::class.java)
-    private val sessionRepo = context.mock(SessionRepository::class.java)
+    private val sessionHandler = context.mock(SessionHandler::class.java)
     private val transformer = JsonTransformer()
 
     private val testDate = Date.from(Instant.now())
 
     private val loginController = LoginController(userRepo,
-            sessionRepo,
+            sessionHandler,
             transformer,
             getExpirationDate = {testDate})
 
+    private val userController = UserController()
+
     private val registerController = RegisterController(userRepo, transformer)
+
+    private val logoutController = LogoutController(sessionHandler)
 
     private val loginJSON = """
         {
@@ -52,6 +57,7 @@ class LoginSystemTest {
     private val testUser = User(1L, "John", "password")
     private val possibleUser = Optional.of(testUser)
     private val SID = "123"
+    private val testSession = Session(1L, SID, testDate, "John")
     private var statusReturn: Int = 0
 
     private val req = object: Request(){
@@ -76,16 +82,17 @@ class LoginSystemTest {
                 1,
                 SID,
                 testDate,
+                "John",
                 true
         )
 
         context.expecting {
             oneOf(userRepo).getByUsername("John")
             will(returnValue(possibleUser))
-            oneOf(sessionRepo).registerSession(testSession)
+            oneOf(sessionHandler).saveSession(testSession)
         }
 
-        loginController.doPost(req, res)
+        loginController.handle(req, res)
         assertThat(statusReturn == HttpStatus.OK_200, Is(true))
 
     }
@@ -100,7 +107,7 @@ class LoginSystemTest {
             will(returnValue(possibleUser))
         }
 
-        loginController.doPost(req, res)
+        loginController.handle(req, res)
         assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
     }
 
@@ -113,7 +120,7 @@ class LoginSystemTest {
             will(returnValue(possibleUser))
         }
 
-        loginController.doPost(req, res)
+        loginController.handle(req, res)
         assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
     }
 
@@ -127,7 +134,7 @@ class LoginSystemTest {
                     .registerIfNotExists(userRegistrationRequest)
         }
 
-        registerController.doPost(req, res)
+        registerController.handle(req, res)
         assertThat(statusReturn == HttpStatus.CREATED_201, Is(true))
 
     }
@@ -139,14 +146,31 @@ class LoginSystemTest {
         val userRegistrationRequest = UserRegistrationRequest("John", "password")
 
         context.expecting {
-            oneOf(userRepo)
-                    .registerIfNotExists(userRegistrationRequest)
+            oneOf(userRepo).registerIfNotExists(userRegistrationRequest)
             will(throwException(UserAlreadyExistsException()))
         }
 
-        registerController.doPost(req, res)
+        registerController.handle(req, res)
         assertThat(statusReturn == HttpStatus.BAD_REQUEST_400, Is(true))
 
     }
 
+    @Test
+    fun logOutUser(){
+
+        context.expecting {
+            oneOf(sessionHandler).terminateSession(testSession.sessionId)
+        }
+
+        logoutController.handle(req, res, testSession)
+    }
+
+    @Test
+    fun retrieveSessionUser(){
+
+        val user = userController.handle(req, res, testSession)
+
+        assertThat(user == User(1L, "John", ""), Is(true))
+
+    }
 }

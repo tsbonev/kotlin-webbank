@@ -9,6 +9,7 @@ import kotlin.collections.LinkedHashMap
 data class Session(val userId: Long,
                    val sessionId: String,
                    val expiresOn: Date,
+                   val username: String,
                    val isAuthenticated: Boolean = false){
 
     fun toMap(): LinkedHashMap<String, Any>{
@@ -16,8 +17,8 @@ data class Session(val userId: Long,
                 "sessionId" to this.sessionId,
                 "userId" to this.userId,
                 "expiresOn" to this.expiresOn,
+                "username" to this.username,
                 "isAuthenticated" to this.isAuthenticated
         )
     }
-
 }

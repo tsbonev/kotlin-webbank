@@ -1,16 +1,13 @@
 package com.clouway.bankapp.adapter.datastore
 
-import com.clouway.bankapp.adapter.gae.datastore.DatastoreServiceProvider
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreUserRepository
 import com.clouway.bankapp.core.User
 import com.clouway.bankapp.core.UserAlreadyExistsException
 import com.clouway.bankapp.core.UserRegistrationRequest
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper
-import org.junit.After
-import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.assertThat
+import org.junit.Rule
+import rule.DatastoreRule
 import org.hamcrest.CoreMatchers.`is` as Is
 
 /**
@@ -18,23 +15,14 @@ import org.hamcrest.CoreMatchers.`is` as Is
  */
 class UserRepositoryTest {
 
-    private val helper = LocalServiceTestHelper(LocalDatastoreServiceTestConfig())
+    @Rule
+    @JvmField
+    val helper: DatastoreRule = DatastoreRule()
 
-    private val provider = DatastoreServiceProvider()
-    private val userRepo = DatastoreUserRepository(provider)
+    private val userRepo = DatastoreUserRepository()
 
     private val registerJohn = UserRegistrationRequest("John", "password")
     private val userJohn = User(1, "John", "password")
-
-    @Before
-    fun setUp() {
-        helper.setUp()
-    }
-
-    @After
-    fun tearDown() {
-        helper.tearDown()
-    }
 
     @Test
     fun shouldRegisterUser(){

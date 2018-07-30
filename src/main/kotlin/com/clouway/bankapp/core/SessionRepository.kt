@@ -13,5 +13,4 @@ interface SessionRepository {
     fun deleteSessionsExpiringBefore(date: Date)
     fun getSessionAvailableAt(sessionId: String, date: Date): Optional<Session>
     fun getActiveSessionsCount(): Int
-
 }

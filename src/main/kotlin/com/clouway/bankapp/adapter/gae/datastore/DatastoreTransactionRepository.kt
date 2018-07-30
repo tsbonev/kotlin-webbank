@@ -4,18 +4,19 @@ import com.clouway.bankapp.core.Operation
 import com.clouway.bankapp.core.Transaction
 import com.clouway.bankapp.core.TransactionRepository
 import com.clouway.bankapp.core.TransactionRequest
-import com.google.appengine.api.datastore.Entity
+import com.google.appengine.api.datastore.*
 import com.google.appengine.api.datastore.FetchOptions.Builder.withLimit
-import com.google.appengine.api.datastore.KeyFactory
-import com.google.appengine.api.datastore.Query
 import java.time.Instant
 import java.util.*
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreTransactionRepository(private val provider: StoreServiceProvider,
-                                     private val limit: Int = 100) : TransactionRepository {
+class DatastoreTransactionRepository(private val limit: Int = 100) : TransactionRepository {
+
+
+    private val service: DatastoreService
+        get() = DatastoreServiceFactory.getDatastoreService()
 
     private val transactionRequestEntityMapper = object: EntityMapper<TransactionRequest> {
         override fun map(obj: TransactionRequest): Entity {
@@ -33,7 +34,7 @@ class DatastoreTransactionRepository(private val provider: StoreServiceProvider,
 
     private fun retrieveUsername(userId: Long): String{
         val userKey = KeyFactory.createKey("User", userId)
-        return provider.service.get(userKey).properties["username"].toString()
+        return service.get(userKey).properties["username"].toString()
     }
 
     private fun andFilter(param: String, value: Long): Query.Filter{
@@ -56,7 +57,7 @@ class DatastoreTransactionRepository(private val provider: StoreServiceProvider,
 
     private fun getTransactionEntityList(id: Long, pageSize: Int = limit, offset: Int = 0): List<Entity>{
 
-        return provider.service
+        return service
                 .prepare(Query("Transaction").setFilter(andFilter("userId", id)))
                 .asList(withLimit(pageSize)
                         .offset(offset))
@@ -64,7 +65,7 @@ class DatastoreTransactionRepository(private val provider: StoreServiceProvider,
     }
 
     override fun save(transaction: TransactionRequest) {
-        provider.service.put(transactionRequestEntityMapper.map(transaction))
+        service.put(transactionRequestEntityMapper.map(transaction))
     }
 
     override fun getUserTransactions(id: Long, page: Int, pageSize: Int): List<Transaction> {
