@@ -16,6 +16,5 @@ data class Transaction (val id: Long = -1,
     fun getAmountFormatted(): String{
         return String.format("%.2f", amount)
     }
-
 }
 

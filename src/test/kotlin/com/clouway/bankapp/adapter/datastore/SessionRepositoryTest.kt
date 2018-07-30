@@ -1,14 +1,11 @@
 package com.clouway.bankapp.adapter.datastore
 
-import com.clouway.bankapp.adapter.gae.datastore.DatastoreServiceProvider
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionRepository
 import com.clouway.bankapp.core.Session
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper
-import org.junit.After
-import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.assertThat
+import org.junit.Rule
+import rule.DatastoreRule
 import java.time.Instant
 import java.util.*
 import org.hamcrest.CoreMatchers.`is` as Is
@@ -18,26 +15,17 @@ import org.hamcrest.CoreMatchers.`is` as Is
  */
 class SessionRepositoryTest {
 
-    private val helper = LocalServiceTestHelper(LocalDatastoreServiceTestConfig())
+    @Rule
+    @JvmField
+    val helper: DatastoreRule= DatastoreRule()
 
-    private val provider = DatastoreServiceProvider()
-    private val sessionRepo = DatastoreSessionRepository(provider)
+    private val sessionRepo = DatastoreSessionRepository()
     private val tomorrow = Date.from(Instant.now().plusSeconds(86401))
     private val now = Date.from(Instant.now())
     private val yesterday = Date.from(Instant.now().minusSeconds(86401))
 
-    private val activeSession = Session(1, "123", tomorrow, true)
-    private val expiredSession = Session(1, "123", yesterday, true)
-
-    @Before
-    fun setUp() {
-        helper.setUp()
-    }
-
-    @After
-    fun tearDown() {
-        helper.tearDown()
-    }
+    private val activeSession = Session(1, "123", tomorrow, "John", true)
+    private val expiredSession = Session(1, "123", yesterday, "John", true)
 
     @Test
     fun shouldRegisterSession(){
@@ -80,9 +68,9 @@ class SessionRepositoryTest {
     @Test
     fun shouldCountActiveSessions(){
 
-        val sessionActive1 = Session(1, "123", tomorrow, true)
-        val sessionActive2 = Session(2, "1234", tomorrow, true)
-        val sessionInactive = Session(3, "12345", yesterday, true)
+        val sessionActive1 = Session(1, "123", tomorrow, "John", true)
+        val sessionActive2 = Session(2, "1234", tomorrow, "John",true)
+        val sessionInactive = Session(3, "12345", yesterday, "John", true)
 
         sessionRepo.registerSession(sessionActive1)
         sessionRepo.registerSession(sessionActive2)

@@ -11,14 +11,13 @@ import spark.Response
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
 class RegisterController(private val userRepo: UserRepository,
-                         private val transformer: JsonTransformer) {
-
-    fun doPost(req: Request, res: Response){
-        try{
-            userRepo.registerIfNotExists(transformer.from(req.body(), UserRegistrationRequest::class.java))
-            res.status(HttpStatus.CREATED_201)
+                         private val transformer: JsonTransformer) : Controller {
+    override fun handle(request: Request, response: Response): Any? {
+        return try{
+            userRepo.registerIfNotExists(transformer.from(request.body(), UserRegistrationRequest::class.java))
+            response.status(HttpStatus.CREATED_201)
         }catch (e: UserAlreadyExistsException){
-            res.status(HttpStatus.BAD_REQUEST_400)
+            response.status(HttpStatus.BAD_REQUEST_400)
         }
     }
 

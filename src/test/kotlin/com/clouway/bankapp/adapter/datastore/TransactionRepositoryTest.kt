@@ -1,17 +1,14 @@
 package com.clouway.bankapp.adapter.datastore
 
-import com.clouway.bankapp.adapter.gae.datastore.DatastoreServiceProvider
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreTransactionRepository
 import com.clouway.bankapp.core.*
+import com.google.appengine.api.datastore.DatastoreServiceFactory
 import com.google.appengine.api.datastore.Entity
-import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.assertThat
-import java.time.Instant
-import java.util.*
+import org.junit.Rule
+import rule.DatastoreRule
 import org.hamcrest.CoreMatchers.`is` as Is
 
 /**
@@ -19,24 +16,19 @@ import org.hamcrest.CoreMatchers.`is` as Is
  */
 class TransactionRepositoryTest {
 
-    private val helper = LocalServiceTestHelper(LocalDatastoreServiceTestConfig())
+    @Rule
+    @JvmField
+    val helper: DatastoreRule = DatastoreRule()
 
-    private val provider = DatastoreServiceProvider()
-    private val transactionRepo = DatastoreTransactionRepository(provider)
+    private val transactionRepo = DatastoreTransactionRepository()
     private val transaction = TransactionRequest(1, Operation.DEPOSIT, 200.0)
 
     @Before
     fun setUp() {
-        helper.setUp()
         val userEntity = Entity("User", 1)
         userEntity.setProperty("username", "John")
         userEntity.setProperty("password", "password")
-        provider.service.put(userEntity)
-    }
-
-    @After
-    fun tearDown() {
-        helper.tearDown()
+        DatastoreServiceFactory.getDatastoreService().put(userEntity)
     }
 
     @Test
