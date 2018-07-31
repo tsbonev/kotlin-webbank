@@ -1,5 +1,6 @@
 package com.clouway.bankapp.core
 
+import java.time.LocalDateTime
 import java.util.*
 
 /**
@@ -7,10 +8,8 @@ import java.util.*
  */
 interface SessionRepository {
 
-    fun registerSession(session: Session)
-    fun refreshSession(session: Session)
+    fun issueSession(sessionRequest: SessionRequest)
     fun terminateSession(sessionId: String)
-    fun deleteSessionsExpiringBefore(date: Date)
-    fun getSessionAvailableAt(sessionId: String, date: Date): Optional<Session>
-    fun getActiveSessionsCount(): Int
+    @Throws(SessionNotFoundException::class)
+    fun getSessionAvailableAt(sessionId: String, date: LocalDateTime): Optional<Session>
 }

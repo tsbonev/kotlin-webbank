@@ -1,28 +1,43 @@
 package com.clouway.bankapp.core.security
 
+import com.clouway.bankapp.core.SessionNotFoundException
+import com.clouway.bankapp.core.SessionRepository
+import org.eclipse.jetty.http.HttpStatus
 import spark.Filter
 import spark.Request
 import spark.Response
-import java.util.*
+import spark.Spark.halt
+import java.time.LocalDateTime
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class SecurityFilter(private val sessionAge: Int = 600000) : Filter {
+class SecurityFilter(private val sessionRepo: SessionRepository,
+                     private val sessionProvider: SessionProvider,
+                     private val instant: LocalDateTime = LocalDateTime.now()) : Filter {
 
-    /**
-     * Adds a cookie to the user's browser.
-     *
-     * @param res response
-     */
-    private fun addCookie(res: Response) {
-        val UUIDValue = UUID.randomUUID().toString()
-        res.cookie("/", "SID", UUIDValue, sessionAge, false, false)
+    private fun redirectToLogin(res: Response) {
+        halt(HttpStatus.UNAUTHORIZED_401)
+        res.redirect("/login")
     }
 
     override fun handle(req: Request, res: Response) {
-        if(req.cookie("SID") == null) {
-            addCookie(res)
+
+        val cookie = req.cookie("SID") ?: return redirectToLogin(res)
+
+        try {
+            val possibleSession = sessionRepo.getSessionAvailableAt(cookie, instant)
+            if(!possibleSession.isPresent) return redirectToLogin(res)
+            sessionProvider.setContext(possibleSession.get())
+        } catch (e: SessionNotFoundException) {
+
+            when(req.pathInfo()){
+                "/login" -> return
+                "/register" -> return
+                "/" -> return
+            }
+
+            redirectToLogin(res)
         }
     }
 

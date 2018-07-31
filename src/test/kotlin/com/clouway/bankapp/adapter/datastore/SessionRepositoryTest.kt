@@ -2,12 +2,12 @@ package com.clouway.bankapp.adapter.datastore
 
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionRepository
 import com.clouway.bankapp.core.Session
+import com.clouway.bankapp.core.SessionRequest
 import org.junit.Test
 import org.junit.Assert.assertThat
 import org.junit.Rule
 import rule.DatastoreRule
-import java.time.Instant
-import java.util.*
+import java.time.LocalDateTime
 import org.hamcrest.CoreMatchers.`is` as Is
 
 /**
@@ -19,18 +19,18 @@ class SessionRepositoryTest {
     @JvmField
     val helper: DatastoreRule= DatastoreRule()
 
-    private val sessionRepo = DatastoreSessionRepository()
-    private val tomorrow = Date.from(Instant.now().plusSeconds(86401))
-    private val now = Date.from(Instant.now())
-    private val yesterday = Date.from(Instant.now().minusSeconds(86401))
+    private val tomorrow =  LocalDateTime.of(2018, 8, 3, 10, 36, 23, 905000000)
+    private val now = LocalDateTime.of(2018, 8, 2, 10, 36, 23, 905000000)
+    private val yesterday =  LocalDateTime.of(2018, 8, 1, 10, 36, 23, 905000000)
+    private val sessionRepo = DatastoreSessionRepository(instant = now, sessionRefreshDays = 1)
 
     private val activeSession = Session(1, "123", tomorrow, "John", true)
-    private val expiredSession = Session(1, "123", yesterday, "John", true)
-
+    private val activeSessionRequest = SessionRequest(1, "123", "John", tomorrow)
+    private val expiredSessionRequest = SessionRequest(1, "1234", "John", yesterday)
     @Test
     fun shouldRegisterSession(){
 
-        sessionRepo.registerSession(activeSession)
+        sessionRepo.issueSession(activeSessionRequest)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(true))
 
@@ -39,7 +39,7 @@ class SessionRepositoryTest {
     @Test
     fun shouldNotGetExpiredSession(){
 
-        sessionRepo.registerSession(expiredSession)
+        sessionRepo.issueSession(expiredSessionRequest)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(false))
 
@@ -48,7 +48,7 @@ class SessionRepositoryTest {
     @Test
     fun shouldDeleteExpiringSession(){
 
-        sessionRepo.registerSession(expiredSession)
+        sessionRepo.issueSession(expiredSessionRequest)
         sessionRepo.deleteSessionsExpiringBefore(now)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(false))
@@ -58,7 +58,7 @@ class SessionRepositoryTest {
     @Test
     fun shouldTerminateSession(){
 
-        sessionRepo.registerSession(activeSession)
+        sessionRepo.issueSession(activeSessionRequest)
         sessionRepo.terminateSession(activeSession.sessionId)
 
         assertThat(sessionRepo.getSessionAvailableAt("123", now).isPresent, Is(false))
@@ -68,26 +68,18 @@ class SessionRepositoryTest {
     @Test
     fun shouldCountActiveSessions(){
 
-        val sessionActive1 = Session(1, "123", tomorrow, "John", true)
-        val sessionActive2 = Session(2, "1234", tomorrow, "John",true)
-        val sessionInactive = Session(3, "12345", yesterday, "John", true)
-
-        sessionRepo.registerSession(sessionActive1)
-        sessionRepo.registerSession(sessionActive2)
-        sessionRepo.registerSession(sessionInactive)
-
-        assertThat(sessionRepo.getActiveSessionsCount() == 2, Is(true))
+        sessionRepo.issueSession(expiredSessionRequest)
+        sessionRepo.issueSession(activeSessionRequest)
+        
+        assertThat(sessionRepo.getActiveSessionsCount(), Is(1))
 
     }
 
     @Test
-    fun shouldRefreshSession(){
-
-        sessionRepo.registerSession(expiredSession)
-        sessionRepo.refreshSession(expiredSession)
-
-        assertThat(sessionRepo.getSessionAvailableAt(expiredSession.sessionId, now).isPresent, Is(true))
-
+    fun shouldReturnEmptyWhenNotFound(){
+        assertThat(sessionRepo.
+                getSessionAvailableAt("fakeSID", LocalDateTime.now())
+                .isPresent, Is(false))
     }
 
 }

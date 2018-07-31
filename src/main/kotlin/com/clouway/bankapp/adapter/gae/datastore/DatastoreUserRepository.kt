@@ -1,64 +1,46 @@
 package com.clouway.bankapp.adapter.gae.datastore
 
-import com.clouway.bankapp.core.User
-import com.clouway.bankapp.core.UserAlreadyExistsException
-import com.clouway.bankapp.core.UserRegistrationRequest
-import com.clouway.bankapp.core.UserRepository
+import com.clouway.bankapp.core.*
 import com.google.appengine.api.datastore.*
 import com.google.appengine.api.datastore.FetchOptions.Builder.withLimit
 import java.util.*
+import kotlin.math.absoluteValue
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreUserRepository(private val limit: Int = 100) : UserRepository {
+class DatastoreUserRepository : UserRepository {
+
+    private fun mapEntityToUser(entity: Entity): User{
+        val typedEntity = TypedEntity(entity)
+        return User(
+                typedEntity.longValue("id"),
+                typedEntity.string("username"),
+                typedEntity.stringOr("password", "")
+        )
+    }
+
+    private fun mapUserToEntity(key: Key, user: User): Entity{
+        val typedEntity = TypedEntity(Entity(key))
+        typedEntity.setUnindexedProperty("password", user.password)
+        typedEntity.setIndexedProperty("id", user.id)
+        typedEntity.setIndexedProperty("username", user.username)
+        return typedEntity.raw()
+    }
 
     private val service: DatastoreService
         get() = DatastoreServiceFactory.getDatastoreService()
-
-    private val registrationEntityMapper = object : EntityMapper<UserRegistrationRequest> {
-        override fun map(obj: UserRegistrationRequest): Entity {
-            val entity = Entity("User")
-            entity.setProperty("username", obj.username)
-            entity.setProperty("password", obj.password)
-            return entity
-        }
-    }
-
-    private val userEntityMapper = object : EntityMapper<User> {
-        override fun map(obj: User): Entity {
-            val entity = Entity("User")
-            entity.setProperty("username", obj.username)
-            entity.setProperty("password", obj.password)
-            return entity
-        }
-    }
-
-    private val userRowMapper = object : RowMapper<User> {
-        override fun map(entity: Entity): User {
-            return User(
-                    entity.key.id,
-                    entity.properties["username"] as String,
-                    entity.properties["password"] as String
-            )
-        }
-    }
 
     private fun andFilter(param: String, value: String): Query.Filter {
         return Query.FilterPredicate(param,
                 Query.FilterOperator.EQUAL, value)
     }
 
-
     private fun checkIfUserExists(username: String): Boolean {
-        if (service.prepare(Query("User")
+        return service.prepare(Query("User")
                         .setFilter(andFilter("username", username)))
                         .asList(withLimit(1))
-                        .size != 0) {
-            return true
-        }
-
-        return false
+                        .size != 0
     }
 
     override fun checkPassword(user: User): Boolean {
@@ -77,26 +59,13 @@ class DatastoreUserRepository(private val limit: Int = 100) : UserRepository {
 
     override fun getById(id: Long): Optional<User> {
         val key = KeyFactory.createKey("User", id)
+
         return try {
-            val entity = service.get(key)
-            Optional.of(userRowMapper.map(entity))
-        } catch (e: EntityNotFoundException) {
+            val userEntity = service.get(key)
+            Optional.of(mapEntityToUser(userEntity))
+        }catch (e: EntityNotFoundException){
             Optional.empty()
         }
-    }
-
-    override fun getAll(): List<User> {
-        val entityList = service
-                .prepare(Query("User")).asList(withLimit(limit))
-
-        val userList = mutableListOf<User>()
-
-        for (entity in entityList) {
-            userList.add(userRowMapper.map(entity))
-        }
-
-        return userList
-
     }
 
     override fun deleteById(id: Long) {
@@ -105,13 +74,8 @@ class DatastoreUserRepository(private val limit: Int = 100) : UserRepository {
     }
 
     override fun update(user: User) {
-
         val key = KeyFactory.createKey("User", user.id)
-        val service = DatastoreServiceFactory.getDatastoreService()
-        val dsUser = service.get(key)
-        dsUser.setPropertiesFrom(userEntityMapper.map(user))
-        service.put(dsUser)
-
+        service.put(mapUserToEntity(key, user))
     }
 
     override fun getByUsername(username: String): Optional<User> {
@@ -119,25 +83,26 @@ class DatastoreUserRepository(private val limit: Int = 100) : UserRepository {
         val entity = service
                 .prepare(Query("User")
                         .setFilter(andFilter("username", username)))
-                .asSingleEntity()
+                .asSingleEntity() ?: return Optional.empty()
 
-        if (entity != null) {
-            return Optional.of(userRowMapper.map(entity))
-        }
-
-        return Optional.empty()
-
+        return Optional.of(mapEntityToUser(entity))
     }
 
-    override fun registerIfNotExists(registerRequest: UserRegistrationRequest) {
+    override fun registerIfNotExists(registerRequest: UserRegistrationRequest): User {
 
-        val entity = registrationEntityMapper.map(registerRequest)
+        val user = User(UUID.randomUUID()
+                .leastSignificantBits
+                    .absoluteValue,
+                registerRequest.username,
+                registerRequest.password)
 
         if (checkIfUserExists(registerRequest.username)) {
             throw UserAlreadyExistsException()
         }
+        val userKey = KeyFactory.createKey("User", user.id)
 
-        service.put(entity)
+        service.put(mapUserToEntity(userKey, user))
 
+        return user
     }
 }

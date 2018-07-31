@@ -1,10 +1,8 @@
 package com.clouway.bankapp.adapter.spark
 
 import com.clouway.bankapp.core.*
-import com.clouway.bankapp.core.security.SessionHandler
-import com.clouway.bankapp.core.security.SessionLoader
+import com.clouway.bankapp.core.security.SessionProvider
 import org.eclipse.jetty.http.HttpStatus
-import org.eclipse.jetty.server.session.SessionContext
 import org.jmock.AbstractExpectations.returnValue
 import org.jmock.AbstractExpectations.throwException
 import org.jmock.Expectations
@@ -15,7 +13,7 @@ import org.junit.Rule
 import org.junit.Test
 import spark.Request
 import spark.Response
-import java.time.Instant
+import java.time.LocalDateTime
 import java.util.*
 import org.hamcrest.CoreMatchers.`is` as Is
 
@@ -34,22 +32,18 @@ class TransactionSystemTest {
     }
 
     private val transactionRepo = context.mock(TransactionRepository::class.java)
-    private val sessionHandler = context.mock(SessionHandler::class.java)
+    private val jsonTransformer = context.mock(JsonSerializer::class.java)
 
-    private val sessionLoader = SessionLoader(sessionHandler)
-
-    private val testDate = Date.from(Instant.now())
-
-    private val transformer = JsonTransformer()
-
+    private val testDate = LocalDateTime.of(2018, 8, 2, 10, 36, 23, 905000000)
 
     private val listTransactionController = ListTransactionController(transactionRepo)
-    private val saveTransactionController = SaveTransactionController(transactionRepo, transformer)
+    private val saveTransactionController = SaveTransactionController(transactionRepo, jsonTransformer)
 
-    private val testSession = Session(1L, "123", testDate, "John", true)
     private val SID = "123"
+    private val testSession =
+            Optional.of(Session(1L, SID, testDate, "John", true))
     private var statusReturn: Int = 0
-
+    private val sessionProvider = context.mock(SessionProvider::class.java)
     private val transactionRequest = TransactionRequest(1L, Operation.WITHDRAW, 200.0)
     private val transactionJson = """
         {
@@ -87,13 +81,13 @@ class TransactionSystemTest {
     fun getUserTransactions(){
 
         context.expecting {
-            oneOf(sessionHandler).getSessionById(SID)
-            will(returnValue(testSession))
+            oneOf(sessionProvider).getContext()
+            will(returnValue(testSession.get()))
             oneOf(transactionRepo).getUserTransactions(1L)
             will(returnValue(emptyList<Transaction>()))
         }
 
-        SecuredController(listTransactionController, sessionLoader).handle(req, res)
+        SecuredController(listTransactionController, sessionProvider).handle(req, res)
         assertThat(statusReturn == HttpStatus.OK_200, Is(true))
     }
 
@@ -101,11 +95,11 @@ class TransactionSystemTest {
     fun rejectCallWithNoSession(){
 
         context.expecting {
-            oneOf(sessionHandler).getSessionById(SID)
+            oneOf(sessionProvider).getContext()
             will(throwException(SessionNotFoundException()))
         }
 
-        SecuredController(listTransactionController, sessionLoader).handle(req, res)
+        SecuredController(listTransactionController, sessionProvider).handle(req, res)
         assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
 
     }
@@ -114,14 +108,16 @@ class TransactionSystemTest {
     fun addTransactionToUserHistory(){
 
         context.expecting {
-            oneOf(sessionHandler).getSessionById(SID)
-            will(returnValue(testSession))
+            oneOf(sessionProvider).getContext()
+            will(returnValue(testSession.get()))
+            oneOf(jsonTransformer).fromJson(transactionJson, TransactionRequest::class.java)
+            will(returnValue(transactionRequest))
 
             oneOf(transactionRepo).save(transactionRequest)
 
         }
 
-        SecuredController(saveTransactionController, sessionLoader).handle(req, res)
+        SecuredController(saveTransactionController, sessionProvider).handle(req, res)
         assertThat(statusReturn == HttpStatus.CREATED_201, Is(true))
     }
 
@@ -129,11 +125,11 @@ class TransactionSystemTest {
     fun rejectAddingToMissingSession(){
 
         context.expecting {
-            oneOf(sessionHandler).getSessionById(SID)
+            oneOf(sessionProvider).getContext()
             will(throwException(SessionNotFoundException()))
         }
 
-        SecuredController(saveTransactionController, sessionLoader).handle(req, res)
+        SecuredController(saveTransactionController, sessionProvider).handle(req, res)
         assertThat(statusReturn == HttpStatus.UNAUTHORIZED_401, Is(true))
 
     }
