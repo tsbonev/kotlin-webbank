@@ -1,70 +1,71 @@
 package com.clouway.bankapp.adapter.gae.datastore
 
-import com.clouway.bankapp.core.Session
-import com.clouway.bankapp.core.SessionRepository
+import com.clouway.bankapp.adapter.gae.get
+import com.clouway.bankapp.adapter.gae.putJson
+import com.clouway.bankapp.adapter.gae.toUtilDate
+import com.clouway.bankapp.core.*
 import com.google.appengine.api.datastore.*
 import com.google.appengine.api.datastore.FetchOptions.Builder.withLimit
-import java.time.Instant
+import java.time.LocalDateTime
 import java.util.*
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-class DatastoreSessionRepository(private val limit: Int = 100,
-                                 private val sessionRefreshTime: Long = 86400L) : SessionRepository {
+class DatastoreSessionRepository(private val transformer: JsonTransformerWrapper,
+                                 private val limit: Int = 100,
+                                 private val instant: LocalDateTime = LocalDateTime.now(),
+                                 private val sessionRefreshDays: Long = 10) : SessionRepository {
 
     private val service: DatastoreService
-            get() = DatastoreServiceFactory.getDatastoreService()
+        get() = DatastoreServiceFactory.getDatastoreService()
 
-    private val sessionEntityMapper = object: EntityMapper<Session> {
-        override fun map(obj: Session): Entity {
-            val entity = Entity("Session", obj.sessionId)
 
-            entity.setProperty("userId", obj.userId)
-            entity.setProperty("username", obj.username)
-            entity.setProperty("expiresOn", obj.expiresOn)
-            entity.setProperty("isAuthenticated", obj.isAuthenticated)
-
-            return entity
-        }
-    }
-
-    private val sessionRowMapper = object: RowMapper<Session> {
-        override fun map(entity: Entity): Session{
-            return Session(
-                    entity.properties["userId"] as Long,
-                    entity.key.name,
-                    entity.properties["expiresOn"] as Date,
-                    entity.properties["username"] as String,
-                    entity.properties["isAuthenticated"] as Boolean
-            )
-        }
-    }
-
-    private fun getSessionEntityList(date: Date): List<Entity>{
-        return service
-                .prepare(Query("Session")
-                        .setFilter(greaterThanFilter("expiresOn", date)))
-                .asList(withLimit(limit))
-    }
-
-    private fun greaterThanFilter(param: String, value: Any): Query.Filter{
+    private fun greaterThanFilter(param: String, value: Any): Query.Filter {
         return Query.FilterPredicate(param,
                 Query.FilterOperator.GREATER_THAN, value)
     }
 
+    private fun getSessionList(date: LocalDateTime): List<Session> {
+        val sessionEntities = service
+                .prepare(Query("Session")
+                        .setFilter(greaterThanFilter("expiresOn", date.toUtilDate())))
+                .asList(withLimit(limit))
+
+        val sessionList = mutableListOf<Session>()
+
+        sessionEntities.forEach {
+            sessionList.add(transformer.fromJson(it.properties["content"].toString(), Session::class.java))
+        }
+
+        return sessionList
+    }
+
     override fun registerSession(session: Session) {
-        service.put(sessionEntityMapper.map(session))
+        val sessionKey = KeyFactory.createKey("Session", session.sessionId)
+        try {
+            service.get(sessionKey)
+            throw UserAlreadyHasSessionException()
+        } catch (e: EntityNotFoundException) {
+            service.putJson(sessionKey, session, transformer)
+        }
     }
 
     override fun refreshSession(session: Session) {
         val key = KeyFactory.createKey("Session", session.sessionId)
-        val sessionEntity = service.get(key)
-        sessionEntity.setProperty("expiresOn", Date.from(Instant.now()
-                .plusSeconds(sessionRefreshTime)))
+        val possibleSession = service.get(key, Session::class.java, transformer)
 
-        service.put(sessionEntity)
-
+        if (possibleSession.isPresent) {
+            val refreshedSession = Session(
+                    session.userId,
+                    session.sessionId,
+                    instant.plusDays(sessionRefreshDays),
+                    session.username
+            )
+            service.putJson(key, refreshedSession, transformer)
+        } else {
+            throw SessionNotFoundException()
+        }
     }
 
     override fun terminateSession(sessionId: String) {
@@ -72,42 +73,33 @@ class DatastoreSessionRepository(private val limit: Int = 100,
         service.delete(key)
     }
 
-    override fun deleteSessionsExpiringBefore(date: Date) {
-        val sessionEntityList = getSessionEntityList(date)
+    override fun deleteSessionsExpiringBefore(date: LocalDateTime) {
+        val sessionList = getSessionList(date)
 
-        for(session in sessionEntityList){
-            service.delete(session.key)
+        for (session in sessionList) {
+            val sessionKey = KeyFactory.createKey("Session", session.sessionId)
+            service.delete(sessionKey)
         }
-
     }
 
-    override fun getSessionAvailableAt(sessionId: String, date: Date): Optional<Session> {
+    override fun getSessionAvailableAt(sessionId: String, date: LocalDateTime): Optional<Session> {
 
         val sessionKey = KeyFactory.createKey("Session", sessionId)
 
-        return try{
+        return try {
             val sessionEntity = service.get(sessionKey)
             val sessionExpirationDate = sessionEntity.properties["expiresOn"] as Date
-
-            if(sessionExpirationDate.before(date)){
-                Optional.empty()
-            }
-            else{
-                Optional.of(sessionRowMapper.map(sessionEntity))
-            }
-        }catch (e: EntityNotFoundException){
+            if (sessionExpirationDate.before(date.toUtilDate())) return Optional.empty()
+            service.get(sessionKey, Session::class.java, transformer)
+        } catch (e: EntityNotFoundException) {
             Optional.empty()
         }
-
-
     }
 
     override fun getActiveSessionsCount(): Int {
-
         return service
                 .prepare(Query("Session").setKeysOnly()
-                        .setFilter(greaterThanFilter("expiresOn", Date.from(Instant.now()))))
+                        .setFilter(greaterThanFilter("expiresOn", instant.toUtilDate())))
                 .asList(withLimit(limit)).size
-
     }
 }

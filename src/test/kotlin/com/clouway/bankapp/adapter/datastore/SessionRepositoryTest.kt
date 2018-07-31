@@ -1,13 +1,13 @@
 package com.clouway.bankapp.adapter.datastore
 
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionRepository
+import com.clouway.bankapp.core.GsonWrapper
 import com.clouway.bankapp.core.Session
 import org.junit.Test
 import org.junit.Assert.assertThat
 import org.junit.Rule
 import rule.DatastoreRule
-import java.time.Instant
-import java.util.*
+import java.time.LocalDateTime
 import org.hamcrest.CoreMatchers.`is` as Is
 
 /**
@@ -19,13 +19,15 @@ class SessionRepositoryTest {
     @JvmField
     val helper: DatastoreRule= DatastoreRule()
 
-    private val sessionRepo = DatastoreSessionRepository()
-    private val tomorrow = Date.from(Instant.now().plusSeconds(86401))
-    private val now = Date.from(Instant.now())
-    private val yesterday = Date.from(Instant.now().minusSeconds(86401))
+    private val jsonTransformer = GsonWrapper()
+
+    private val tomorrow =  LocalDateTime.of(2018, 8, 3, 10, 36, 23, 905000000)
+    private val now = LocalDateTime.of(2018, 8, 2, 10, 36, 23, 905000000)
+    private val yesterday =  LocalDateTime.of(2018, 8, 1, 10, 36, 23, 905000000)
+    private val sessionRepo = DatastoreSessionRepository(jsonTransformer, instant = now, sessionRefreshDays = 1)
 
     private val activeSession = Session(1, "123", tomorrow, "John", true)
-    private val expiredSession = Session(1, "123", yesterday, "John", true)
+    private val expiredSession = Session(1, "1234", yesterday, "Don", false)
 
     @Test
     fun shouldRegisterSession(){
@@ -68,15 +70,10 @@ class SessionRepositoryTest {
     @Test
     fun shouldCountActiveSessions(){
 
-        val sessionActive1 = Session(1, "123", tomorrow, "John", true)
-        val sessionActive2 = Session(2, "1234", tomorrow, "John",true)
-        val sessionInactive = Session(3, "12345", yesterday, "John", true)
-
-        sessionRepo.registerSession(sessionActive1)
-        sessionRepo.registerSession(sessionActive2)
-        sessionRepo.registerSession(sessionInactive)
-
-        assertThat(sessionRepo.getActiveSessionsCount() == 2, Is(true))
+        sessionRepo.registerSession(expiredSession)
+        sessionRepo.registerSession(activeSession)
+        
+        assertThat(sessionRepo.getActiveSessionsCount() == 1, Is(true))
 
     }
 
@@ -86,8 +83,15 @@ class SessionRepositoryTest {
         sessionRepo.registerSession(expiredSession)
         sessionRepo.refreshSession(expiredSession)
 
-        assertThat(sessionRepo.getSessionAvailableAt(expiredSession.sessionId, now).isPresent, Is(true))
+        assertThat(sessionRepo.getSessionAvailableAt(expiredSession.sessionId, now).get().expiresOn, Is(tomorrow))
 
+    }
+
+    @Test
+    fun shouldReturnEmptyWhenNotFound(){
+        assertThat(sessionRepo.
+                getSessionAvailableAt("fakeSID", LocalDateTime.now())
+                .isPresent, Is(false))
     }
 
 }

@@ -1,18 +1,15 @@
 package com.clouway.bankapp.adapter.gae.datastore
 
-import com.clouway.bankapp.core.Session
-import com.clouway.bankapp.core.SessionNotFoundException
-import com.clouway.bankapp.core.SessionRepository
+import com.clouway.bankapp.core.*
 import com.clouway.bankapp.core.security.SessionHandler
-import java.time.Instant
-import java.util.*
+import java.time.LocalDateTime
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
 class DatastoreSessionHandler(private val sessions: SessionRepository,
-                              private val getCurrentTime: () -> Date = {
-                                  Date.from(Instant.now())
+                              private val getCurrentTime: () -> LocalDateTime = {
+                                  LocalDateTime.now()
                               }) : SessionHandler {
 
     override fun getSessionById(sessionId: String): Session {

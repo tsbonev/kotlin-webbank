@@ -1,6 +1,7 @@
 package com.clouway.bankapp.adapter.datastore
 
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreUserRepository
+import com.clouway.bankapp.core.GsonWrapper
 import com.clouway.bankapp.core.User
 import com.clouway.bankapp.core.UserAlreadyExistsException
 import com.clouway.bankapp.core.UserRegistrationRequest
@@ -19,7 +20,8 @@ class UserRepositoryTest {
     @JvmField
     val helper: DatastoreRule = DatastoreRule()
 
-    private val userRepo = DatastoreUserRepository()
+    private val transformerWrapper = GsonWrapper()
+    private val userRepo = DatastoreUserRepository(transformerWrapper)
 
     private val registerJohn = UserRegistrationRequest("John", "password")
     private val userJohn = User(1, "John", "password")
@@ -27,14 +29,14 @@ class UserRepositoryTest {
     @Test
     fun shouldRegisterUser(){
 
-        userRepo.registerIfNotExists(registerJohn)
+        val user = userRepo.registerIfNotExists(registerJohn)
 
-        assertThat(userRepo.getById(1).get() == userJohn, Is(true))
+        assertThat(userRepo.getById(user.id).get() == user, Is(true))
 
     }
 
     @Test(expected = UserAlreadyExistsException::class)
-    fun shouldNotRegisterUser(){
+    fun shouldNotRegisterUserTwice(){
 
         userRepo.registerIfNotExists(registerJohn)
         userRepo.registerIfNotExists(registerJohn)
@@ -44,9 +46,9 @@ class UserRepositoryTest {
     @Test
     fun shouldGetByUsername(){
 
-        userRepo.registerIfNotExists(registerJohn)
+        val user = userRepo.registerIfNotExists(registerJohn)
 
-        assertThat(userRepo.getByUsername(registerJohn.username).get() == userJohn,
+        assertThat(userRepo.getByUsername(registerJohn.username).get() == user,
                 Is(true))
 
     }
@@ -74,32 +76,17 @@ class UserRepositoryTest {
         userRepo.registerIfNotExists(UserRegistrationRequest("John", "password"))
 
         assertThat(userRepo.checkPassword(userJohn), Is(false))
-
-    }
-
-    @Test
-    fun shouldReturnAllUsers(){
-
-        userRepo.registerIfNotExists(UserRegistrationRequest("John", "password"))
-
-        val userDon = User(2, "Don", "password")
-
-        userRepo.registerIfNotExists(UserRegistrationRequest("Don", "password"))
-
-        assertThat(userRepo.getAll() == listOf(userJohn, userDon), Is(true))
-
     }
 
     @Test
     fun shouldDeleteUser(){
 
-        userRepo.registerIfNotExists(UserRegistrationRequest("John", "password"))
+        val user = userRepo.registerIfNotExists(UserRegistrationRequest("John", "password"))
 
-        assertThat(userRepo.getById(1).isPresent, Is(true))
+        assertThat(userRepo.getById(user.id).isPresent, Is(true))
 
-        userRepo.deleteById(1)
-        assertThat(userRepo.getById(1).isPresent, Is(false))
-
+        userRepo.deleteById(user.id)
+        assertThat(userRepo.getById(user.id).isPresent, Is(false))
     }
 
     @Test
@@ -112,8 +99,5 @@ class UserRepositoryTest {
         userRepo.update(userJohn)
 
         assertThat(userRepo.getById(1).get().username == "Don", Is(true))
-
     }
-
-
 }

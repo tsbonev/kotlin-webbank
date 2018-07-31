@@ -4,7 +4,6 @@ import com.clouway.bankapp.core.*
 import com.clouway.bankapp.core.security.SessionHandler
 import com.clouway.bankapp.core.security.SessionLoader
 import org.eclipse.jetty.http.HttpStatus
-import org.eclipse.jetty.server.session.SessionContext
 import org.jmock.AbstractExpectations.returnValue
 import org.jmock.AbstractExpectations.throwException
 import org.jmock.Expectations
@@ -15,8 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import spark.Request
 import spark.Response
-import java.time.Instant
-import java.util.*
+import java.time.LocalDateTime
 import org.hamcrest.CoreMatchers.`is` as Is
 
 
@@ -35,16 +33,15 @@ class TransactionSystemTest {
 
     private val transactionRepo = context.mock(TransactionRepository::class.java)
     private val sessionHandler = context.mock(SessionHandler::class.java)
+    private val jsonTransformer = context.mock(JsonTransformerWrapper::class.java)
 
     private val sessionLoader = SessionLoader(sessionHandler)
 
-    private val testDate = Date.from(Instant.now())
-
-    private val transformer = JsonTransformer()
+    private val testDate = LocalDateTime.now()
 
 
     private val listTransactionController = ListTransactionController(transactionRepo)
-    private val saveTransactionController = SaveTransactionController(transactionRepo, transformer)
+    private val saveTransactionController = SaveTransactionController(transactionRepo, jsonTransformer)
 
     private val testSession = Session(1L, "123", testDate, "John", true)
     private val SID = "123"
@@ -114,6 +111,8 @@ class TransactionSystemTest {
     fun addTransactionToUserHistory(){
 
         context.expecting {
+            oneOf(jsonTransformer).fromJson(transactionJson, TransactionRequest::class.java)
+            will(returnValue(transactionRequest))
             oneOf(sessionHandler).getSessionById(SID)
             will(returnValue(testSession))
 

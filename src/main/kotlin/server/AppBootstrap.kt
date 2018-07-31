@@ -5,6 +5,7 @@ import com.clouway.bankapp.adapter.gae.datastore.DatastoreTransactionRepository
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreUserRepository
 import com.clouway.bankapp.adapter.gae.memcache.MemcacheSessionHandler
 import com.clouway.bankapp.adapter.spark.*
+import com.clouway.bankapp.core.GsonWrapper
 import com.clouway.bankapp.core.security.SecurityFilter
 import com.clouway.bankapp.core.security.SessionLoader
 import com.google.appengine.api.memcache.MemcacheServiceFactory
@@ -17,20 +18,24 @@ import spark.servlet.SparkApplication
 class AppBootstrap : SparkApplication{
     override fun init() {
 
-        val transformer= JsonTransformer()
 
-        val userRepo = DatastoreUserRepository()
-        val sessionRepo = DatastoreSessionRepository()
-        val transactionRepo = DatastoreTransactionRepository()
+        val transformerWrapper = GsonWrapper()
+        val responseTransformer= JsonResponseTransformer(transformerWrapper)
+        val userRepo = DatastoreUserRepository(transformerWrapper)
+        val sessionRepo = DatastoreSessionRepository(transformerWrapper)
+        val transactionRepo = DatastoreTransactionRepository(transformerWrapper)
 
-        val sessionLoader = SessionLoader(MemcacheSessionHandler(DatastoreSessionHandler(sessionRepo)))
+        val sessionLoader = SessionLoader(
+                MemcacheSessionHandler(
+                DatastoreSessionHandler(sessionRepo),
+                        transformerWrapper))
 
         val securityFilter = SecurityFilter()
 
-        val registerController = RegisterController(userRepo, transformer)
+        val registerController = RegisterController(userRepo, transformerWrapper)
         val listTransactionController = ListTransactionController(transactionRepo)
-        val saveTransactionController = SaveTransactionController(transactionRepo, transformer)
-        val loginController = LoginController(userRepo, sessionLoader, transformer)
+        val saveTransactionController = SaveTransactionController(transactionRepo, transformerWrapper)
+        val loginController = LoginController(userRepo, sessionLoader, transformerWrapper)
         val userController = UserController()
         val logoutController = LogoutController(sessionLoader)
 
@@ -48,38 +53,38 @@ class AppBootstrap : SparkApplication{
 
         get("/user",
                 SecuredController(userController, sessionLoader),
-                transformer)
+                responseTransformer)
 
         get("/transactions",
                 SecuredController(listTransactionController, sessionLoader),
-                transformer)
+                responseTransformer)
 
         get("/active", Route{
             req, res ->
             return@Route sessionRepo.getActiveSessionsCount()
-        }, transformer)
+        }, responseTransformer)
 
         get("/statistics"){
             req, res ->
             val service = MemcacheServiceFactory.getMemcacheService()
             val stats = service.statistics
-            transformer.render(stats)
+            responseTransformer.render(stats)
         }
 
         post("/transactions",
                 SecuredController(saveTransactionController, sessionLoader),
-                transformer)
+                responseTransformer)
 
         post("/login",
                 AppController(loginController),
-                transformer)
+                responseTransformer)
 
         post("/register",
                 AppController(registerController),
-                transformer)
+                responseTransformer)
 
         post("/logout", SecuredController(logoutController, sessionLoader),
-                transformer)
+                responseTransformer)
 
     }
 }

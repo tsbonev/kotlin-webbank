@@ -5,23 +5,22 @@ import com.clouway.bankapp.core.security.SessionHandler
 import org.eclipse.jetty.http.HttpStatus
 import spark.Request
 import spark.Response
-import java.time.Instant
-import java.util.*
+import java.time.LocalDateTime
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
 class LoginController(private val userRepo: UserRepository,
                       private val sessionHandler: SessionHandler,
-                      private val transformer: JsonTransformer,
-                      private val sessionLifetime: Long = 600000,
-                      private val getExpirationDate: () -> Date = {
-                               Date.from(Instant.now().plusSeconds(sessionLifetime))
+                      private val transformer: JsonTransformerWrapper,
+                      private val sessionLifetime: Long = 10,
+                      private val getExpirationDate: () -> LocalDateTime = {
+                               LocalDateTime.now().plusDays(sessionLifetime)
                            }) : Controller {
 
     override fun handle(request: Request, response: Response): Any? {
 
-        val loginRequest = transformer.from(request.body(), UserRegistrationRequest::class.java)
+        val loginRequest = transformer.fromJson(request.body(), UserRegistrationRequest::class.java)
 
         val actualUser = userRepo.getByUsername(loginRequest.username)
 

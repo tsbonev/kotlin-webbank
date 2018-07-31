@@ -20,20 +20,29 @@ class TransactionRepositoryTest {
     @JvmField
     val helper: DatastoreRule = DatastoreRule()
 
-    private val transactionRepo = DatastoreTransactionRepository()
-    private val transaction = TransactionRequest(1, Operation.DEPOSIT, 200.0)
+    private val jsonTransformer = GsonWrapper()
+    private val transactionRepo = DatastoreTransactionRepository(jsonTransformer)
+    private val transactionRequest = TransactionRequest(1, Operation.DEPOSIT, 200.0)
+    private val userJson = """
+            {
+            "id"=1,
+            "username"="John",
+            "password"="password"
+            }
+        """.trimIndent()
 
     @Before
     fun setUp() {
         val userEntity = Entity("User", 1)
         userEntity.setProperty("username", "John")
-        userEntity.setProperty("password", "password")
+        userEntity.setProperty("content", userJson)
         DatastoreServiceFactory.getDatastoreService().put(userEntity)
     }
 
     @Test
     fun shouldSaveTransaction(){
-        transactionRepo.save(transaction)
+
+        transactionRepo.save(transactionRequest)
 
         assertThat(transactionRepo.getUserTransactions(1).isNotEmpty(), Is(true))
     }
@@ -58,11 +67,11 @@ class TransactionRepositoryTest {
 
         assertThat(transactionRepo
                 .getUserTransactions(1, 1, 2)
-                .size == 2, Is(true))
+                .size, Is(2))
 
         assertThat(transactionRepo
-                .getUserTransactions(1, 3, 2)[0]
-                .id == 5L, Is(true))
+                .getUserTransactions(1, 4, 3)
+                .size, Is(1))
     }
 
 }

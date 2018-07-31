@@ -1,24 +1,19 @@
 package com.clouway.bankapp.adapter.memcache
 
-import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionHandler
-import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionRepository
 import com.clouway.bankapp.adapter.gae.memcache.MemcacheSessionHandler
+import com.clouway.bankapp.core.GsonWrapper
 import com.clouway.bankapp.core.Session
 import com.clouway.bankapp.core.SessionNotFoundException
-import com.clouway.bankapp.core.User
-import com.google.appengine.api.memcache.Expiration
-import com.google.appengine.api.memcache.MemcacheServiceFactory
-import com.google.appengine.tools.development.testing.LocalMemcacheServiceTestConfig
-import com.google.appengine.tools.development.testing.LocalServiceTestHelper
-import org.junit.After
-import org.junit.Before
+import com.clouway.bankapp.core.security.SessionHandler
+import org.jmock.Expectations
+import org.jmock.Mockery
+import org.jmock.integration.junit4.JUnitRuleMockery
 import org.junit.Test
-import java.time.Instant
-import java.util.*
 import org.junit.Assert.assertThat
 import org.junit.Rule
 import rule.MemcacheRule
-import kotlin.collections.LinkedHashMap
+import org.jmock.AbstractExpectations.*
+import java.time.LocalDateTime
 import org.hamcrest.CoreMatchers.`is` as Is
 
 /**
@@ -30,11 +25,19 @@ class MemcacheSessionTest {
     @JvmField
     val helper: MemcacheRule = MemcacheRule()
 
-    private val yesterday = Date.from(Instant.now().minusSeconds(86401))
+    private fun Mockery.expecting(block: Expectations.() -> Unit){
+            checking(Expectations().apply(block))
+    }
 
-    private val sessionRepo = DatastoreSessionRepository()
-    private val persistentSessionHandler = DatastoreSessionHandler(sessionRepo)
-    private val cachedSessionHandler = MemcacheSessionHandler(persistentSessionHandler)
+    @Rule
+    @JvmField
+    val context: JUnitRuleMockery = JUnitRuleMockery()
+
+    private val yesterday = LocalDateTime.now().minusDays(4)
+
+    private val transformerWrapper = GsonWrapper()
+    private val persistentSessionHandler = context.mock(SessionHandler::class.java)
+    private val cachedSessionHandler = MemcacheSessionHandler(persistentSessionHandler, transformerWrapper)
 
     private val session = Session(1, "123SID", yesterday, "John",true)
 
@@ -42,16 +45,26 @@ class MemcacheSessionTest {
     @Test
     fun saveSessionInMemcache(){
 
+        context.expecting {
+            oneOf(persistentSessionHandler).saveSession(session)
+        }
+
         cachedSessionHandler.saveSession(session)
 
         val retrievedSession = cachedSessionHandler.getSessionById(session.sessionId)
-
-        assertThat(retrievedSession == session, Is(true))
-
+        
+        assertThat(retrievedSession.sessionId == session.sessionId, Is(true))
     }
 
     @Test(expected = SessionNotFoundException::class)
     fun removeSessionFromMemcache(){
+
+        context.expecting {
+            oneOf(persistentSessionHandler).saveSession(session)
+            oneOf(persistentSessionHandler).terminateSession(session.sessionId)
+            oneOf(persistentSessionHandler).getSessionById(session.sessionId)
+            will(throwException(SessionNotFoundException()))
+        }
 
         cachedSessionHandler.saveSession(session)
 
