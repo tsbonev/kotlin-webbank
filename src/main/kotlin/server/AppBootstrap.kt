@@ -32,6 +32,8 @@ class AppBootstrap : SparkApplication{
 
         val securityFilter = SecurityFilter()
 
+        val receiveMailController = ReceiveMailController()
+
         val registerController = RegisterController(userRepo, transformerWrapper)
         val listTransactionController = ListTransactionController(transactionRepo)
         val saveTransactionController = SaveTransactionController(transactionRepo, transformerWrapper)
@@ -85,6 +87,8 @@ class AppBootstrap : SparkApplication{
 
         post("/logout", SecuredController(logoutController, sessionLoader),
                 responseTransformer)
+
+        post("/worker", AppController(receiveMailController))
 
     }
 }

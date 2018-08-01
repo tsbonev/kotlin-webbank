@@ -139,6 +139,7 @@ class LoginSystemTest {
             will(returnValue(testUserRegistrationRequest))
             oneOf(userRepo)
                     .registerIfNotExists(testUserRegistrationRequest)
+            will(returnValue(testUser))
         }
 
         registerController.handle(req, res)
