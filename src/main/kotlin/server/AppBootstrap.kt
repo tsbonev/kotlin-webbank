@@ -44,10 +44,10 @@ class AppBootstrap : SparkApplication{
         })
 
 
-        before(securityFilter)
+        /*before(securityFilter)
 
         before("/login", loginFilter)
-        before("/register", loginFilter)
+        before("/register", loginFilter)*/
 
         after(Filter {req, res ->
             res.type("application/json")
@@ -57,6 +57,14 @@ class AppBootstrap : SparkApplication{
             _, _ ->
             sessionProvider.clearContext()
         }
+
+        post("/mail",
+                AppController(MailController()),
+                responseTransformer)
+
+        get("/imail",
+                AppController(InternalMailController()),
+                responseTransformer)
 
         get("/user",
                 SecuredController(userController, sessionProvider),
