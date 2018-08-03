@@ -31,6 +31,8 @@ class AppBootstrap : SparkApplication{
         val securityFilter = SecurityFilter(sessionLoader, sessionProvider)
         val loginFilter = LoginFilter(sessionProvider)
 
+        val registerListener = RegisterListener()
+
         val registerController = RegisterController(userRepo, jsonSerializer)
         val listTransactionController = ListTransactionController(transactionRepo)
         val saveTransactionController = SaveTransactionController(transactionRepo, jsonSerializer)
@@ -38,6 +40,7 @@ class AppBootstrap : SparkApplication{
         val userController = UserController()
         val logoutController = LogoutController(sessionLoader)
 
+        registerController.addPropertyChangeListener(registerListener)
 
         before(Filter { req, res ->
             res.raw().characterEncoding = "UTF-8"
