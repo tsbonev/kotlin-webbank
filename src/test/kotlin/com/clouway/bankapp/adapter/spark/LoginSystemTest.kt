@@ -1,7 +1,6 @@
 package com.clouway.bankapp.adapter.spark
 
 import com.clouway.bankapp.core.*
-import com.clouway.bankapp.core.security.SessionHandler
 import org.eclipse.jetty.http.HttpStatus
 import org.jmock.AbstractExpectations.*
 import org.jmock.Expectations
@@ -12,7 +11,7 @@ import org.jmock.integration.junit4.JUnitRuleMockery
 import org.junit.Assert.assertThat
 import spark.Request
 import spark.Response
-import java.time.Instant
+import java.time.LocalDateTime
 import java.util.*
 import org.hamcrest.CoreMatchers.`is` as Is
 
@@ -31,21 +30,23 @@ class LoginSystemTest {
     }
 
     private val userRepo = context.mock(UserRepository::class.java)
-    private val sessionHandler = context.mock(SessionHandler::class.java)
-    private val transformer = JsonTransformer()
+    private val sessionRepository = context.mock(SessionRepository::class.java)
+    private val jsonTransformer = context.mock(JsonSerializer::class.java)
 
-    private val testDate = Date.from(Instant.now())
+    private val SID = "123"
+    private val testDate = LocalDateTime.now()
 
     private val loginController = LoginController(userRepo,
-            sessionHandler,
-            transformer,
-            getExpirationDate = {testDate})
+            sessionRepository,
+            jsonTransformer,
+            getExpirationDate = {testDate},
+            getCookieSID = {SID})
 
     private val userController = UserController()
 
-    private val registerController = RegisterController(userRepo, transformer)
+    private val registerController = RegisterController(userRepo, jsonTransformer)
 
-    private val logoutController = LogoutController(sessionHandler)
+    private val logoutController = LogoutController(sessionRepository)
 
     private val loginJSON = """
         {
@@ -55,8 +56,8 @@ class LoginSystemTest {
     """.trimIndent()
 
     private val testUser = User(1L, "John", "password")
+    private val testUserRegistrationRequest = UserRegistrationRequest("John", "password")
     private val possibleUser = Optional.of(testUser)
-    private val SID = "123"
     private val testSession = Session(1L, SID, testDate, "John")
     private var statusReturn: Int = 0
 
@@ -73,23 +74,28 @@ class LoginSystemTest {
         override fun status(statusCode: Int){
             statusReturn = statusCode
         }
+
+        override fun cookie(path: String, name: String, value: String, maxAge: Int, secured: Boolean, httpOnly: Boolean) {
+
+        }
     }
 
     @Test
     fun logInWithCorrectCredentials(){
 
-        val testSession = Session(
+        val testSessionRequest = SessionRequest(
                 1,
                 SID,
-                testDate,
                 "John",
-                true
+                testDate
         )
 
         context.expecting {
+            oneOf(jsonTransformer).fromJson(loginJSON, UserRegistrationRequest::class.java)
+            will(returnValue(testUserRegistrationRequest))
             oneOf(userRepo).getByUsername("John")
             will(returnValue(possibleUser))
-            oneOf(sessionHandler).saveSession(testSession)
+            oneOf(sessionRepository).issueSession(testSessionRequest)
         }
 
         loginController.handle(req, res)
@@ -103,6 +109,8 @@ class LoginSystemTest {
         val possibleUser = Optional.of(user)
 
         context.expecting {
+            oneOf(jsonTransformer).fromJson(loginJSON, UserRegistrationRequest::class.java)
+            will(returnValue(testUserRegistrationRequest))
             oneOf(userRepo).getByUsername("John")
             will(returnValue(possibleUser))
         }
@@ -116,6 +124,8 @@ class LoginSystemTest {
         val possibleUser = Optional.empty<User>()
 
         context.expecting {
+            oneOf(jsonTransformer).fromJson(loginJSON, UserRegistrationRequest::class.java)
+            will(returnValue(testUserRegistrationRequest))
             oneOf(userRepo).getByUsername("John")
             will(returnValue(possibleUser))
         }
@@ -127,11 +137,11 @@ class LoginSystemTest {
     @Test
     fun registerUserForFirstTime(){
 
-        val userRegistrationRequest = UserRegistrationRequest("John", "password")
-
         context.expecting {
+            oneOf(jsonTransformer).fromJson(loginJSON, UserRegistrationRequest::class.java)
+            will(returnValue(testUserRegistrationRequest))
             oneOf(userRepo)
-                    .registerIfNotExists(userRegistrationRequest)
+                    .registerIfNotExists(testUserRegistrationRequest)
         }
 
         registerController.handle(req, res)
@@ -143,10 +153,10 @@ class LoginSystemTest {
     @Test
     fun rejectRegisteringTakenUsername(){
 
-        val userRegistrationRequest = UserRegistrationRequest("John", "password")
-
         context.expecting {
-            oneOf(userRepo).registerIfNotExists(userRegistrationRequest)
+            oneOf(jsonTransformer).fromJson(loginJSON, UserRegistrationRequest::class.java)
+            will(returnValue(testUserRegistrationRequest))
+            oneOf(userRepo).registerIfNotExists(testUserRegistrationRequest)
             will(throwException(UserAlreadyExistsException()))
         }
 
@@ -159,7 +169,7 @@ class LoginSystemTest {
     fun logOutUser(){
 
         context.expecting {
-            oneOf(sessionHandler).terminateSession(testSession.sessionId)
+            oneOf(sessionRepository).terminateSession(testSession.sessionId)
         }
 
         logoutController.handle(req, res, testSession)

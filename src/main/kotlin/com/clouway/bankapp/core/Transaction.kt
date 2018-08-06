@@ -1,7 +1,6 @@
 package com.clouway.bankapp.core
 
-import java.time.Instant
-import java.util.Date
+import java.time.LocalDateTime
 
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
@@ -9,7 +8,7 @@ import java.util.Date
 data class Transaction (val id: Long = -1,
                         val operation: Operation,
                         val userId: Long,
-                        val date: Date = Date.from(Instant.now()),
+                        val date: LocalDateTime = LocalDateTime.now(),
                         val amount: Double,
                         val username: String = ""){
 

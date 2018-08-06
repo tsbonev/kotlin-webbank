@@ -6,13 +6,11 @@ import com.clouway.bankapp.core.SessionNotFoundException
 /**
  * @author Tsvetozar Bonev (tsbonev@gmail.com)
  */
-interface SessionHandler {
+interface SessionProvider {
 
     @Throws(SessionNotFoundException::class)
-    fun getSessionById(sessionId: String) : Session
-
-    fun saveSession(session: Session)
-
-    fun terminateSession(sessionId: String)
+    fun getContext(): Session
+    fun setContext(context: Session)
+    fun clearContext()
 
 }

@@ -1,12 +1,13 @@
 package server
-import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionHandler
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreSessionRepository
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreTransactionRepository
 import com.clouway.bankapp.adapter.gae.datastore.DatastoreUserRepository
-import com.clouway.bankapp.adapter.gae.memcache.MemcacheSessionHandler
+import com.clouway.bankapp.adapter.gae.memcache.MemcacheSessionRepository
 import com.clouway.bankapp.adapter.spark.*
+import com.clouway.bankapp.core.GsonSerializer
+import com.clouway.bankapp.core.security.LoginFilter
 import com.clouway.bankapp.core.security.SecurityFilter
-import com.clouway.bankapp.core.security.SessionLoader
+import com.clouway.bankapp.core.security.ThreadLocalSessionProvider
 import com.google.appengine.api.memcache.MemcacheServiceFactory
 import spark.Filter
 import spark.Route
@@ -17,20 +18,23 @@ import spark.servlet.SparkApplication
 class AppBootstrap : SparkApplication{
     override fun init() {
 
-        val transformer= JsonTransformer()
 
+        val jsonSerializer = GsonSerializer()
+        val responseTransformer = JsonResponseTransformer(jsonSerializer)
         val userRepo = DatastoreUserRepository()
         val sessionRepo = DatastoreSessionRepository()
         val transactionRepo = DatastoreTransactionRepository()
+        val sessionProvider = ThreadLocalSessionProvider()
 
-        val sessionLoader = SessionLoader(MemcacheSessionHandler(DatastoreSessionHandler(sessionRepo)))
+        val sessionLoader = MemcacheSessionRepository(sessionRepo, jsonSerializer)
 
-        val securityFilter = SecurityFilter()
+        val securityFilter = SecurityFilter(sessionLoader, sessionProvider)
+        val loginFilter = LoginFilter(sessionProvider)
 
-        val registerController = RegisterController(userRepo, transformer)
+        val registerController = RegisterController(userRepo, jsonSerializer)
         val listTransactionController = ListTransactionController(transactionRepo)
-        val saveTransactionController = SaveTransactionController(transactionRepo, transformer)
-        val loginController = LoginController(userRepo, sessionLoader, transformer)
+        val saveTransactionController = SaveTransactionController(transactionRepo, jsonSerializer)
+        val loginController = LoginController(userRepo, sessionLoader, jsonSerializer)
         val userController = UserController()
         val logoutController = LogoutController(sessionLoader)
 
@@ -39,47 +43,55 @@ class AppBootstrap : SparkApplication{
             res.raw().characterEncoding = "UTF-8"
         })
 
+
         before(securityFilter)
+
+        before("/login", loginFilter)
+        before("/register", loginFilter)
 
         after(Filter {req, res ->
             res.type("application/json")
         })
 
+        afterAfter {
+            _, _ ->
+            sessionProvider.clearContext()
+        }
 
         get("/user",
-                SecuredController(userController, sessionLoader),
-                transformer)
+                SecuredController(userController, sessionProvider),
+                responseTransformer)
 
         get("/transactions",
-                SecuredController(listTransactionController, sessionLoader),
-                transformer)
+                SecuredController(listTransactionController, sessionProvider),
+                responseTransformer)
 
         get("/active", Route{
             req, res ->
             return@Route sessionRepo.getActiveSessionsCount()
-        }, transformer)
+        }, responseTransformer)
 
         get("/statistics"){
             req, res ->
             val service = MemcacheServiceFactory.getMemcacheService()
             val stats = service.statistics
-            transformer.render(stats)
+            responseTransformer.render(stats)
         }
 
         post("/transactions",
-                SecuredController(saveTransactionController, sessionLoader),
-                transformer)
+                SecuredController(saveTransactionController, sessionProvider),
+                responseTransformer)
 
         post("/login",
                 AppController(loginController),
-                transformer)
+                responseTransformer)
 
         post("/register",
                 AppController(registerController),
-                transformer)
+                responseTransformer)
 
-        post("/logout", SecuredController(logoutController, sessionLoader),
-                transformer)
+        post("/logout", SecuredController(logoutController, sessionProvider),
+                responseTransformer)
 
     }
 }
