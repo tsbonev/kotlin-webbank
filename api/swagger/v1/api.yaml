@@ -1,0 +1,215 @@
+openapi: 3.0.1
+components:
+  schemas:
+    TransactionRequest:
+      type: object
+      properties:
+        operation:
+          type: string
+        amount:
+          type: number
+      required:
+        - operation
+        - amount
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - email
+        - password
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - username
+        - email
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+        operation:
+          type: string
+        userId:
+          type: string
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+        username:
+          type: string
+      required:
+        - id
+        - operation
+        - userId
+        - date
+        - amount
+        - username
+
+info:
+  title: Rest SPARK bank
+  description: Bank system with Spark Java, Kotlin and GAE
+  version: '0.1'
+servers:
+  - url: 'https://1-dot-sacred-union-210613.appspot.com'
+
+tags:
+  - name: user
+    description: User system
+  - name: transaction
+    description: Transaction system
+
+paths:
+  /active:
+    get:
+      tags:
+        - user
+      description: Returns a integer of active sessions
+      responses:
+        '200':
+          description: An integer of active sessions
+          content:
+            application/json;charset=utf-8:
+              schema:
+                type: integer
+              examples: {}
+        '401':
+          description: User not logged in
+  /transactions:
+    get:
+      tags:
+        - transaction
+      description: Returns a list of transactions
+      responses:
+        '200':
+          description: A JSON array of Transaction objects
+          content:
+            application/json;charset=utf-8:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '401':
+          description: User is not logged in
+    post:
+      tags:
+        - transaction
+      description: Saves a transaction object into the system
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+            examples:
+              '0':
+                value: |-
+                  {
+                      "operation": "WITHDRAW",
+                      "amount": "200.0"
+                  }
+      responses:
+        '201':
+          description: Saved transaction
+        '401':
+          description: User is not logged in
+  /user:
+    get:
+      tags:
+        - user
+      description: Returns a user object
+      responses:
+        '200':
+          description: A User object
+          content:
+            application/json;charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: User is not logged in
+  /login:
+    post:
+      tags:
+        - user
+      description: Logs a user into the system
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              '0':
+                value: |-
+                  {
+                      "username": "username",
+                      "password": "password"
+                  }
+      responses:
+        '200':
+          description: User was found and logged in
+        '401':
+          description: User credentials were not correct
+        '403':
+          description: User already logged in
+  /logout:
+    post:
+      tags:
+        - user
+      description: Logs the user out
+      responses:
+        '200':
+          description: User logged out
+        '401':
+          description: User not logged in
+  /register:
+    post:
+      tags:
+        - user
+      description: Registers a user into the system
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              '0':
+                value: |-
+                  {
+                      "username": "username",
+                      "password": "password"
+                  }
+      responses:
+        '201':
+          description: User object created
+        '400':
+          description: User is already registered
+        '403':
+          description: User already logged in
