@@ -11,6 +11,8 @@ import org.jmock.integration.junit4.JUnitRuleMockery
 import org.junit.Assert.assertThat
 import spark.Request
 import spark.Response
+import java.beans.PropertyChangeEvent
+import java.beans.PropertyChangeListener
 import java.time.LocalDateTime
 import java.util.*
 import org.hamcrest.CoreMatchers.`is` as Is
@@ -45,6 +47,7 @@ class LoginSystemTest {
     private val userController = UserController()
 
     private val registerController = RegisterController(userRepo, jsonTransformer)
+    private val registerListener = context.mock(PropertyChangeListener::class.java)
 
     private val logoutController = LogoutController(sessionRepository)
 
@@ -137,11 +140,15 @@ class LoginSystemTest {
     @Test
     fun registerUserForFirstTime(){
 
+        registerController.addPropertyChangeListener(registerListener)
+
         context.expecting {
             oneOf(jsonTransformer).fromJson(loginJSON, UserRegistrationRequest::class.java)
             will(returnValue(testUserRegistrationRequest))
             oneOf(userRepo)
                     .registerIfNotExists(testUserRegistrationRequest)
+            will(returnValue(testUser))
+            oneOf(registerListener).propertyChange(with(any(PropertyChangeEvent::class.java)))
         }
 
         registerController.handle(req, res)

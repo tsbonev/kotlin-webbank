@@ -31,6 +31,8 @@ class AppBootstrap : SparkApplication{
         val securityFilter = SecurityFilter(sessionLoader, sessionProvider)
         val loginFilter = LoginFilter(sessionProvider)
 
+        val registerListener = RegisterListener()
+
         val registerController = RegisterController(userRepo, jsonSerializer)
         val listTransactionController = ListTransactionController(transactionRepo)
         val saveTransactionController = SaveTransactionController(transactionRepo, jsonSerializer)
@@ -38,16 +40,17 @@ class AppBootstrap : SparkApplication{
         val userController = UserController()
         val logoutController = LogoutController(sessionLoader)
 
+        registerController.addPropertyChangeListener(registerListener)
 
         before(Filter { req, res ->
             res.raw().characterEncoding = "UTF-8"
         })
 
 
-        before(securityFilter)
+        /*before(securityFilter)
 
         before("/login", loginFilter)
-        before("/register", loginFilter)
+        before("/register", loginFilter)*/
 
         after(Filter {req, res ->
             res.type("application/json")
@@ -57,6 +60,14 @@ class AppBootstrap : SparkApplication{
             _, _ ->
             sessionProvider.clearContext()
         }
+
+        post("/mail",
+                AppController(MailController()),
+                responseTransformer)
+
+        get("/imail",
+                AppController(InternalMailController()),
+                responseTransformer)
 
         get("/user",
                 SecuredController(userController, sessionProvider),
